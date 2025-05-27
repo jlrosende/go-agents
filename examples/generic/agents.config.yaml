@@ -1,0 +1,20 @@
+openai:
+  api_key: "YOUR_OPENAI_API_KEY"
+  base_url: ""
+# azure:
+# api_key: "YOUR_AZURE_OPENAI_API_KEY"
+# base_url: "https://your-resource-name.openai.azure.com/"
+# azure_deployment: "my-deployment"
+# api_version: "2023-05-15"
+# Do not include resource_name if you use base_url
+
+# --- OPTION 3: Using base_url and DefaultAzureCredential (for managed identity, Azure CLI, etc.) ---
+# Requires the 'azure-identity' package to be installed.
+# No api_key or resource_name should be present in this mode.
+# base_url is required and must be the full endpoint URL.
+
+# azure:
+# use_default_azure_credential: true
+# base_url: "https://your-resource-name.openai.azure.com/"
+# azure_deployment: "my-deployment"
+# api_version: "2023-05-15"
