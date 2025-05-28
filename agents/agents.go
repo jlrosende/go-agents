@@ -1,14 +1,14 @@
 package agents
 
 type Agent struct {
-	Name string 
+	Name         string
 	Instructions string
-	Servers []string
+	Servers      []string
 	IncludeTools []string
 	ExcludeTools []string
-	HumanInput bool
+	HumanInput   bool
 }
 
-func (a Agent ) Send(message string) string {
+func (a Agent) Send(message string) string {
 	return "Agent response"
 }

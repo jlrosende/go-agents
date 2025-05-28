@@ -1,0 +1,68 @@
+services:
+  devcontainer:
+    image: mcr.microsoft.com/devcontainers/go:1-1.24-bullseye
+    volumes:
+      - ../..:/workspaces:cached
+    command: sleep infinity
+
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama:/root/.ollama
+    container_name: ollama
+    pull_policy: always
+    tty: true
+    restart: unless-stopped
+    ports:
+      - 11434:11434
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+      - OLLAMA_CONTEXT_LENGTH=8192
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # ollama-webui:
+  #   image: ghcr.io/open-webui/open-webui:main
+  #   container_name: ollama-webui
+  #   volumes:
+  #     - ollama-webui:/app/backend/data
+  #   depends_on:
+  #     - ollama
+  #   ports:
+  #     - 8080:8080
+  #   environment: # https://docs.openwebui.com/getting-started/env-configuration#default_models
+  #     - OLLAMA_BASE_URLS=http://ollama:11434 #comma separated ollama hosts
+  #     - ENV=dev
+  #     - WEBUI_AUTH=False
+  #     - WEBUI_NAME=Ollama AI
+  #     - WEBUI_URL=http://localhost:8080
+  #     - WEBUI_SECRET_KEY=t0p-s3cr3t
+  #   restart: unless-stopped
+
+  # n8n:
+  #   # image: docker.n8n.io/n8nio/n8n
+  #   build:
+  #     context: .
+  #     dockerfile: ./Dockerfile
+  #   container_name: n8n
+  #   volumes:
+  #     - n8n_data:/home/node/.n8n
+  #   ports:
+  #     - 5678:5678
+  #   environment:
+  #     TZ: Europe/Madrid
+  #     GENERIC_TIMEZONE: Europe/Madrid
+  #     N8N_RUNNERS_ENABLED: true
+  #     N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE: true
+  #   restart: unless-stopped
+
+volumes:
+  ollama:
+    external: true
+  # ollama-webui:
+  # n8n_data:

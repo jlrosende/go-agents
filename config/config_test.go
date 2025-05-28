@@ -13,7 +13,7 @@ func TestLoadConfig(t *testing.T) {
 
 		config, err := config.LoadConfig()
 
-		fmt.Printf("%+v", config)
+		fmt.Printf("%+v\n", config)
 
 		assert.NoError(t, err)
 	})

@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/spf13/viper"
 )
@@ -15,26 +16,27 @@ const (
 )
 
 type AgentsConfig struct {
-	Model     string
-	Agents    Agents
-	MCPServer MCPServer
+	Model  string `mapstructure:"model"`
+	Agents Agents `mapstructure:"agents"`
+	MCP    MCP    `mapstructure:"mcp"`
 
-	OpenAI    OpenAI
-	Anthropic Anthropic
-	DeepSeek  Azure
+	OpenAI OpenAI `mapstructure:"openai"`
+	// Anthropic Anthropic `mapstructure:"anthropic"`
+	// Azure Azure `mapstructure:"azure"`
+	// DeepSeek DeepSeek `mapstructure:"deepseek"`
 }
 
 type MCP struct {
-	Servers map[string]MCPServer
+	Servers map[string]MCPServer `mapstructure:"servers"`
 }
 
 type MCPServer struct {
-	Transport    Transport
-	url          string
-	command      string
-	args         []string
-	headers      map[string]string
-	environments map[string]string
+	Transport    Transport         `mapstructure:"transport"`
+	Url          string            `mapstructure:"url"`
+	Command       string            `mapstructure:"command"`
+	Args         []string          `mapstructure:"args"`
+	Headers      map[string]string `mapstructure:"headers"`
+	Environments map[string]string `mapstructure:"env"`
 }
 
 type Agents struct {
@@ -42,88 +44,92 @@ type Agents struct {
 }
 
 type Agent struct {
+	Url string `mapstructure:"url"`
 }
 
 type Anthropic struct {
-	ApiKey   string
-	BasePath string
+	ApiKey  string `mapstructure:"api_key"`
+	BaseUrl string `mapstructure:"base_url"`
 }
 
 type OpenAI struct {
-	ApiKey   string
-	BasePath string
+	ApiKey  string `mapstructure:"api_key"`
+	BaseUrl string `mapstructure:"base_url"`
 }
 
 type Azure struct {
 	UseDefaultAzureCredential bool
-	ApiKey                    string
-	BasePath                  string
+	ApiKey                    string `mapstructure:"api_key"`
+	BaseUrl                   string `mapstructure:"base_url"`
 	ApiVersion                string
 }
 
 type DeepSeek struct {
-	ApiKey   string
-	BasePath string
+	ApiKey  string `mapstructure:"api_key"`
+	BaseUrl string `mapstructure:"base_url"`
 }
 
 type Google struct {
-	ApiKey   string
-	BasePath string
+	ApiKey  string `mapstructure:"api_key"`
+	BaseUrl string `mapstructure:"base_url"`
 }
 
 type Generic struct {
-	ApiKey   string
-	BasePath string
+	ApiKey  string `mapstructure:"api_key"`
+	BaseUrl string `mapstructure:"base_url"`
 }
 
 type OpenRouter struct {
-	ApiKey   string
-	BasePath string
+	ApiKey  string `mapstructure:"api_key"`
+	BaseUrl string `mapstructure:"base_url"`
 }
+
 type TensorZero struct {
-	BasePath string
+	BaseUrl string `mapstructure:"base_url"`
 }
 
 func LoadConfig() (*AgentsConfig, error) {
 	var agentsConfig AgentsConfig
+
 	config := viper.New()
 	config.SetConfigName("agents.config")
 	config.SetConfigType("yaml")
 	config.AddConfigPath(".")
 
+	config.SetEnvPrefix("agents")
+	// secrets.AllowEmptyEnv(true)
+	config.AutomaticEnv()
+
 	if err := config.ReadInConfig(); err != nil {
+		slog.Info("ERROR", "err", err)
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 			// Config file not found; ignore error if desired
 			return nil, fmt.Errorf("error loading configs. %w", err)
 		}
 	}
-	config.Unmarshal(&agentsConfig)
-
-	fmt.Printf("Config: %+v", agentsConfig)
-
-	var agentsSecrets AgentsConfig
 
 	secrets := viper.New()
 	secrets.SetConfigName("agents.secrets")
 	secrets.SetConfigType("yaml")
 	secrets.AddConfigPath(".")
 
+	secrets.SetEnvPrefix("agents")
+	// secrets.AllowEmptyEnv(true)
+	secrets.AutomaticEnv()
+
 	if err := secrets.ReadInConfig(); err != nil {
+		slog.Info("ERROR", "err", err)
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 			// Config file not found; ignore error if desired
 			return nil, fmt.Errorf("error loading secrets. %w", err)
 		}
 	}
 
-	secrets.AutomaticEnv()
-	secrets.SetEnvPrefix("agents")
-	secrets.AllowEmptyEnv(true)
-
-	secrets.Unmarshal(&agentsSecrets)
-
-	fmt.Printf("Secrets: %+v", agentsSecrets)
-
 	config.MergeConfigMap(secrets.AllSettings())
+
+	if err := config.Unmarshal(&agentsConfig); err != nil {
+		return nil, fmt.Errorf("error load agents.config.yaml. %w", err)
+	}
 
 	return &agentsConfig, nil
 }

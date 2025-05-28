@@ -1,3 +1,6 @@
+
+model: openai.o3-mini
+
 agents:
   agent_one:
     url: "http://localhost:8000/"
@@ -10,3 +13,10 @@ mcp:
     fetch:
       command: "uvx"
       args: ["mcp-server-fetch"]
+
+openai:
+  base_url: https://api.business.githubcopilot.com/
+
+generic:
+  api_key: ollama
+  base_url: http://ollama:11434/v1
