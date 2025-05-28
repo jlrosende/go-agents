@@ -1,0 +1,12 @@
+agents:
+  agent_one:
+    url: "http://localhost:8000/"
+
+mcp:
+  servers:
+    filesystem:
+      command: "npx"
+      args: ["-y", "@modelcontextprotocol/server-filesystem", "."]
+    fetch:
+      command: "uvx"
+      args: ["mcp-server-fetch"]
