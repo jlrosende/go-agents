@@ -7,14 +7,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-type Transport string
-
-const (
-	TRANSPORT_HTTP  Transport = "http"
-	TRANSPORT_STDIO Transport = "stdio"
-	TRANSPORT_SSE   Transport = "sse"
-)
-
 type AgentsConfig struct {
 	Model  string `mapstructure:"model"`
 	Agents Agents `mapstructure:"agents"`
@@ -22,7 +14,7 @@ type AgentsConfig struct {
 
 	OpenAI OpenAI `mapstructure:"openai"`
 	// Anthropic Anthropic `mapstructure:"anthropic"`
-	// Azure Azure `mapstructure:"azure"`
+	Azure Azure `mapstructure:"azure"`
 	// DeepSeek DeepSeek `mapstructure:"deepseek"`
 }
 
@@ -33,7 +25,7 @@ type MCP struct {
 type MCPServer struct {
 	Transport    Transport         `mapstructure:"transport"`
 	Url          string            `mapstructure:"url"`
-	Command       string            `mapstructure:"command"`
+	Command      string            `mapstructure:"command"`
 	Args         []string          `mapstructure:"args"`
 	Headers      map[string]string `mapstructure:"headers"`
 	Environments map[string]string `mapstructure:"env"`
@@ -58,10 +50,10 @@ type OpenAI struct {
 }
 
 type Azure struct {
-	UseDefaultAzureCredential bool
+	UseDefaultAzureCredential bool   `mapstructure:"use_default_azure_credential"`
 	ApiKey                    string `mapstructure:"api_key"`
 	BaseUrl                   string `mapstructure:"base_url"`
-	ApiVersion                string
+	ApiVersion                string `mapstructure:"api_version"`
 }
 
 type DeepSeek struct {

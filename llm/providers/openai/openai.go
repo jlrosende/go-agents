@@ -4,8 +4,6 @@ import (
 	"github.com/openai/openai-go"
 )
 
-type OpenAIAugmentedLLM struct {
+type OpenAILLM struct {
 	client openai.Client
 }
-
-

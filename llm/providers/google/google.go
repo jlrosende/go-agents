@@ -1,4 +1,4 @@
 package google
 
-type GoogleAugmentedLLM struct {
+type GoogleLLM struct {
 }

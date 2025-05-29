@@ -1,4 +1,3 @@
-
 model: openai.o3-mini
 
 agents:
@@ -15,7 +14,12 @@ mcp:
       args: ["mcp-server-fetch"]
 
 openai:
-  base_url: https://api.business.githubcopilot.com/
+  # base_url: https://api.business.githubcopilot.com/
+  base_url: https://api.githubcopilot.com/
+
+azure:
+  api_version: "2024-12-01-preview"
+  azure_deployment: "o3-mini"
 
 generic:
   api_key: ollama

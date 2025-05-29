@@ -1,4 +1,4 @@
 package generic
 
-type GenericAIAugmentedLLM struct {
+type GenericAILLM struct {
 }

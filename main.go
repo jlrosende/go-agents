@@ -11,7 +11,7 @@ import (
 	"github.com/mark3labs/mcp-go/client/transport"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/openai/openai-go"
-	"github.com/openai/openai-go/option"
+	"github.com/openai/openai-go/azure"
 )
 
 func main() {
@@ -24,38 +24,62 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("%+v\n", c)
+	// client := openai.NewClient(
+	// 	option.WithAPIKey(c.OpenAI.ApiKey),
+	// 	option.WithBaseURL(c.OpenAI.BaseUrl),
+	// 	option.WithHeader("copilot-integration-id", "copilot-chat"),
+	// )
 
 	client := openai.NewClient(
-		option.WithAPIKey(	c.OpenAI.ApiKey),
-		option.WithBaseURL(c.OpenAI.BaseUrl),
-		option.WithHeader("copilot-integration-id", "copilot-chat"),
+		azure.WithEndpoint(c.Azure.BaseUrl, c.Azure.ApiVersion),
+		azure.WithAPIKey(c.Azure.ApiKey),
 	)
 
-	res_list, err:= client.Models.List(
-		ctx, 
-	)
+	// Init mcp tools
+
+	filesystem := transport.NewStdio("npx", []string{}, "-y", "@modelcontextprotocol/server-filesystem", ".")
+	mcpFilesystem := mcp_client.NewClient(filesystem)
+
+	err = mcpFilesystem.Start(ctx)
 
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		panic(err)
 	}
 
-	fmt.Println(res_list.RawJSON())
-
-	res_get, err := client.Models.Get(
-		ctx, 
-		"gpt-4o",
-	)
+	_, err = mcpFilesystem.Initialize(ctx, mcp.InitializeRequest{})
 
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		panic(err)
 	}
 
-	fmt.Println(res_get.RawJSON())
+	// fmt.Println(init)
 
-	question := "What is the weather in New York City?"
+	tools, err := mcpFilesystem.ListTools(ctx, mcp.ListToolsRequest{})
+
+	if err != nil {
+		panic(err)
+	}
+
+	// Load avaliable tools in the chat
+
+	model_tools := []openai.ChatCompletionToolParam{}
+
+	for _, tool := range tools.Tools {
+		model_tools = append(model_tools, openai.ChatCompletionToolParam{
+			Function: openai.FunctionDefinitionParam{
+				Name:        tool.Name,
+				Description: openai.String(tool.Description),
+				Parameters: openai.FunctionParameters{
+					"type":       tool.InputSchema.Type,
+					"properties": tool.InputSchema.Properties,
+					"required":   tool.InputSchema.Required,
+				},
+			},
+			Type: "function",
+		})
+	}
+
+	question := "Write a README-2.md with a basic template."
 
 	print("> ")
 	println(question)
@@ -64,28 +88,14 @@ func main() {
 		Messages: []openai.ChatCompletionMessageParamUnion{
 			openai.UserMessage(question),
 		},
-		Tools: []openai.ChatCompletionToolParam{
-			{
-				Function: openai.FunctionDefinitionParam{
-					Name:        "get_weather",
-					Description: openai.String("Get weather at the given location"),
-					Parameters: openai.FunctionParameters{
-						"type": "object",
-						"properties": map[string]interface{}{
-							"location": map[string]string{
-								"type": "string",
-							},
-						},
-						"required": []string{"location"},
-					},
-				},
-			},
-		},
-		Model: openai.ChatModelO4Mini,
+		Tools:           model_tools,
+		Model:           openai.ChatModelO3Mini,
+		ReasoningEffort: openai.ReasoningEffortHigh,
 	}
 	// Make initial chat completion request
 	completion, err := client.Chat.Completions.New(ctx, params)
 	if err != nil {
+		fmt.Println("Error 1.")
 		panic(err)
 	}
 
@@ -100,73 +110,39 @@ func main() {
 	// If there is a was a function call, continue the conversation
 	params.Messages = append(params.Messages, completion.Choices[0].Message.ToParam())
 	for _, toolCall := range toolCalls {
-		if toolCall.Function.Name == "get_weather" {
-			// Extract the location from the function call arguments
-			var args map[string]interface{}
-			err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args)
-			if err != nil {
-				panic(err)
-			}
-			location := args["location"].(string)
 
-			// Simulate getting weather data
-			weatherData := getWeather(location)
-
-			// Print the weather data
-			fmt.Printf("Weather in %s: %s\n", location, weatherData)
-
-			params.Messages = append(params.Messages, openai.ToolMessage(weatherData, toolCall.ID))
+		var args map[string]interface{}
+		err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args)
+		if err != nil {
+			panic(err)
 		}
+
+		toolRes, err := mcpFilesystem.CallTool(ctx, mcp.CallToolRequest{
+			Params: struct {
+				Name      string    "json:\"name\""
+				Arguments any       "json:\"arguments,omitempty\""
+				Meta      *mcp.Meta "json:\"_meta,omitempty\""
+			}{
+				Name:      toolCall.Function.Name,
+				Arguments: args,
+			},
+		})
+
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		params.Messages = append(params.Messages, openai.ToolMessage(fmt.Sprintf("%+v", toolRes), toolCall.ID))
+
 	}
 
 	completion, err = client.Chat.Completions.New(ctx, params)
 	if err != nil {
+		fmt.Println("Error 2.")
 		panic(err)
 	}
 
 	println(completion.Choices[0].Message.Content)
-
-	filesystem := transport.NewStdio("npx", []string{}, "-y", "@modelcontextprotocol/server-filesystem", ".")
-	mcpFilesystem := mcp_client.NewClient(filesystem)
-
-	err = mcpFilesystem.Start(ctx)
-
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	init, err := mcpFilesystem.Initialize(ctx, mcp.InitializeRequest{})
-
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	fmt.Println(init)
-
-	tools, err := mcpFilesystem.ListTools(ctx, mcp.ListToolsRequest{})
-
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	fmt.Println(tools.Tools)
-
-	result, err:= mcpFilesystem.CallTool(ctx, mcp.CallToolRequest{
-		Params: struct{Name string "json:\"name\""; Arguments any "json:\"arguments,omitempty\""; Meta *mcp.Meta "json:\"_meta,omitempty\""}{
-			Name: "read_file",
-			Arguments: map[string]string{"path": "/workspaces/go-agents/agents.config.yaml"},
-		},
-	})
-
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	fmt.Println(result)
 
 }
 

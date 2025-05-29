@@ -1,4 +1,4 @@
 package anthropic
 
-type AnthropicAugmentedLLM struct {
+type AnthropicLLM struct {
 }

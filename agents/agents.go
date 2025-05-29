@@ -7,6 +7,7 @@ type Agent struct {
 	IncludeTools []string
 	ExcludeTools []string
 	HumanInput   bool
+	Model        string
 }
 
 func (a Agent) Send(message string) string {
