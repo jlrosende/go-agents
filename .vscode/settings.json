@@ -6,7 +6,7 @@
     ],
     "go.formatTool": "custom",
     "go.alternateTools": {
-        "customFormatter": "golangci-lint-v2"
+        "customFormatter": "golangci-lint"
     },
     "go.formatFlags": [
         "fmt",

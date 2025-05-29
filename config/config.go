@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/jlrosende/go-agents/mcp"
 	"github.com/spf13/viper"
 )
 
@@ -23,7 +24,7 @@ type MCP struct {
 }
 
 type MCPServer struct {
-	Transport    Transport         `mapstructure:"transport"`
+	Transport    mcp.Transport     `mapstructure:"transport"`
 	Url          string            `mapstructure:"url"`
 	Command      string            `mapstructure:"command"`
 	Args         []string          `mapstructure:"args"`
