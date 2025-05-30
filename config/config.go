@@ -13,10 +13,14 @@ type AgentsConfig struct {
 	Agents Agents `mapstructure:"agents"`
 	MCP    MCP    `mapstructure:"mcp"`
 
-	OpenAI OpenAI `mapstructure:"openai"`
-	// Anthropic Anthropic `mapstructure:"anthropic"`
-	Azure Azure `mapstructure:"azure"`
-	// DeepSeek DeepSeek `mapstructure:"deepseek"`
+	OpenAI     OpenAI     `mapstructure:"openai"`
+	Anthropic  Anthropic  `mapstructure:"anthropic"`
+	Azure      Azure      `mapstructure:"azure"`
+	Generic    Generic    `mapstructure:"geeneric"`
+	Google     Google     `mapstructure:"google"`
+	DeepSeek   DeepSeek   `mapstructure:"deepseek"`
+	OpenRouter OpenRouter `mapstructure:"openrouter"`
+	TensorZero TensorZero `mapstructure:"tensorzero"`
 }
 
 type MCP struct {
@@ -88,6 +92,13 @@ func LoadConfig() (*AgentsConfig, error) {
 	config.SetConfigName("agents.config")
 	config.SetConfigType("yaml")
 	config.AddConfigPath(".")
+
+	config.SetDefault("openai.base_url", "")
+	config.SetDefault("generic.base_url", "http://localhost:11434/v1")
+	config.SetDefault("deepseek.base_url", "https://api.deepseek.com/v1")
+	config.SetDefault("anthropic.base_url", "https://api.anthropic.com/v1/")
+	config.SetDefault("openrouter.base_url", "https://openrouter.ai/api/v1/")
+	config.SetDefault("google.base_url", "https://generativelanguage.googleapis.com/v1beta/openai/")
 
 	config.SetEnvPrefix("agents")
 	// secrets.AllowEmptyEnv(true)

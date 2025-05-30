@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/jlrosende/go-agents/agents"
 	"github.com/jlrosende/go-agents/config"
@@ -47,26 +47,28 @@ func NewAgentsController() (*AgentsController, error) {
 	}, nil
 }
 
-func (controller *AgentsController) AddMCPServer(server mcp.MCPServer) {
-
+func (controller *AgentsController) AddMCPServer(server *mcp.MCPServer) {
+	controller.MCPServers[server.Name] = server
 }
 
-func (controller *AgentsController) AddAgent(agent agents.Agent) {
-
+func (controller *AgentsController) AddAgent(agent *agents.Agent) {
+	controller.Agents[agent.Name] = agent
 }
 
-func (controller *AgentsController) Run() {
+func (controller *AgentsController) Run() error {
 	// Start all mcp servers
 	for _, server := range controller.MCPServers {
 		err := server.Start()
 		if err != nil {
-			panic(err)
+			return err
 		}
 	}
 
 	// Start all Agents
 
 	// Server mode?
+
+	return nil
 }
 
 func main() {
@@ -77,25 +79,11 @@ func main() {
 		panic(err)
 	}
 
-	for _, server := range app.MCPServers {
-		err := server.Start()
-		if err != nil {
-			panic(err)
-		}
+	err = app.Run()
 
-		tools, err := server.ListTools()
-
-		if err != nil {
-			panic(err)
-		}
-
-		body, err := json.MarshalIndent(tools, "", "   ")
-
-		if err != nil {
-			panic(err)
-		}
-
-		fmt.Println(string(body))
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
 
 	// c, err := config.LoadConfig()
