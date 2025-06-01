@@ -29,14 +29,6 @@ const (
 	LLM_PROVIDER_TENSORZERO Provider = "tensorzero"
 )
 
-type ReasoningEffort string
-
-const (
-	REASONING_EFFORT_HIGH   ReasoningEffort = "high"
-	REASONING_EFFORT_MEDIUM ReasoningEffort = "medium"
-	REASONING_EFFORT_LOW    ReasoningEffort = "low"
-)
-
 func unpackModel(model string, vars ...*string) {
 	for i, str := range strings.SplitN(model, ".", 3) {
 		*vars[i] = str
@@ -56,11 +48,11 @@ func NewLLM(ctx context.Context, model string, config *config.AgentsConfig) (pro
 	case LLM_PROVIDER_DEEPSEEK:
 		return deepseek.NewDeepSeekLLM(ctx, config)
 	case LLM_PROVIDER_GENERIC:
-		return generic.NewGenericLLM(ctx, config)
+		return generic.NewGenericLLM(ctx, name, effort, config)
 	case LLM_PROVIDER_GOOGLE:
 		return google.NewGoogleLLM(ctx, config)
 	case LLM_PROVIDER_OPENAI:
-		return openai.NewOpenAILLM(ctx, config)
+		return openai.NewOpenAILLM(ctx, name, effort, config)
 	case LLM_PROVIDER_OPENROUTER:
 		return tensrozero.NewTensorZeroLLM(ctx, config)
 	case LLM_PROVIDER_TENSORZERO:

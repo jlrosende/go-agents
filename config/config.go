@@ -15,7 +15,7 @@ type AgentsConfig struct {
 	OpenAI     OpenAI     `mapstructure:"openai"`
 	Anthropic  Anthropic  `mapstructure:"anthropic"`
 	Azure      Azure      `mapstructure:"azure"`
-	Generic    Generic    `mapstructure:"geeneric"`
+	Generic    Generic    `mapstructure:"generic"`
 	Google     Google     `mapstructure:"google"`
 	DeepSeek   DeepSeek   `mapstructure:"deepseek"`
 	OpenRouter OpenRouter `mapstructure:"openrouter"`
@@ -38,12 +38,21 @@ type MCPServer struct {
 }
 
 type Agent struct {
-	Url          string   `mapstructure:"url"`
-	Model        string   `mapstructure:"model"`
-	Instructions string   `mapstructure:"instructions"`
-	Servers      []string `mapstructure:"servers"`
-	IncludeTools []string `mapstructure:"include_tools"`
-	ExcludeTools []string `mapstructure:"exclude_tools"`
+	Url           string        `mapstructure:"url"`
+	Model         string        `mapstructure:"model"`
+	Instructions  string        `mapstructure:"instructions"`
+	Servers       []string      `mapstructure:"servers"`
+	IncludeTools  []string      `mapstructure:"include_tools"`
+	ExcludeTools  []string      `mapstructure:"exclude_tools"`
+	RequestParams RequestParams `mapstructure:"request_params"`
+}
+
+type RequestParams struct {
+	UseHistory      bool    `mapstructure:"use_history"`
+	MaxIterations   uint    `mapstructure:"max_iterations"`
+	MaxTokens       int64   `mapstructure:"max_tokens"`
+	Temperature     float64 `mapstructure:"temperature"`
+	ReasoningEffort string  `mapstructure:"ReasoningEffort"`
 }
 
 type Anthropic struct {
@@ -103,8 +112,8 @@ func LoadConfig() (*AgentsConfig, error) {
 
 	// LLM defaults
 	config.SetDefault("openai.base_url", "")
-	config.SetDefault("generic.base_url", "http://localhost:11434/v1")
-	config.SetDefault("deepseek.base_url", "https://api.deepseek.com/v1")
+	config.SetDefault("generic.base_url", "http://localhost:11434/v1/")
+	config.SetDefault("deepseek.base_url", "https://api.deepseek.com/v1/")
 	config.SetDefault("anthropic.base_url", "https://api.anthropic.com/v1/")
 	config.SetDefault("openrouter.base_url", "https://openrouter.ai/api/v1/")
 	config.SetDefault("google.base_url", "https://generativelanguage.googleapis.com/v1beta/openai/")

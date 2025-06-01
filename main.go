@@ -29,7 +29,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	slog.Info(agent.Send("read the file agents.config.yaml"))
+	response, err := agent.Send("read the file agents.config.yaml and the readme.md files")
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	slog.Info(response)
 
 	// ctx := context.Background()
 

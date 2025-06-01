@@ -65,6 +65,8 @@ func NewAgent(ctx context.Context, name, model, instructions string, servers, in
 			MaxIterations:     20,
 			MaxTokens:         8192,
 			Temperature:       0.7,
+			Reasoning:         true,
+			ReasoningEffort:   providers.REASONING_EFFORT_MEDIUM,
 		},
 	}
 }
@@ -108,19 +110,43 @@ func (a *Agent) AttachMCPServers(servers map[string]*mcp.MCPServer) {
 	}
 }
 
-func (a Agent) Send(message string) string {
+func (a Agent) Send(message string) (string, error) {
 	// If use history is true, load memory in conversation
-	response := a.LLM.Generate(a.Instructions, []string{message}, a.RequestParams)
-	// slog.Info(strings.Join(response, "\n"))
+	response := []string{message}
 
-	return strings.Join(response, "\n")
+stop:
+	for _ = range a.RequestParams.MaxIterations {
+		resp, finish, err := a.LLM.Generate(a.Instructions, response, a.RequestParams)
+		if err != nil {
+			return "", err
+		}
+
+		response = resp
+
+		slog.Error(string(finish))
+
+		switch finish {
+		case providers.FINISH_REASON_STOP:
+			break stop
+		case providers.FINISH_REASON_LENGHT:
+			break stop
+		case providers.FINISH_REASON_CONTENT_FILTER:
+			break stop
+		case providers.FINISH_REASON_TOOL_CALLS:
+			slog.Debug(string(providers.FINISH_REASON_TOOL_CALLS))
+			// TODO Call tools to use
+			continue
+		}
+	}
+
+	return strings.Join(response, ""), nil
 }
 
-func (a Agent) Generate(message string) string {
-	response := a.LLM.Generate(a.Instructions, []string{message}, a.RequestParams)
+func (a Agent) Generate(message string) (string, error) {
+	response, _, err := a.LLM.Generate(a.Instructions, []string{message}, a.RequestParams)
 	// slog.Info(strings.Join(response, "\n"))
 
-	return strings.Join(response, "\n")
+	return strings.Join(response, ""), err
 }
 
 func (a Agent) Structured(message string, responseStruct any) string {

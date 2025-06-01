@@ -10,27 +10,48 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
+	"github.com/openai/openai-go/packages/param"
+	"github.com/openai/openai-go/shared"
 )
 
 type OpenAILLM struct {
-	Ctx    context.Context
-	Client openai.Client
-	Tools  []openai.ChatCompletionToolParam
-	Model  string
+	Ctx       context.Context
+	Client    openai.Client
+	Tools     []openai.ChatCompletionToolParam
+	ModelName string
+	Effort    string
+	Reasoning bool
+	Model     *openai.Model
 }
 
 var _ providers.LLM = (*OpenAILLM)(nil)
 
-func NewOpenAILLM(ctx context.Context, config *config.AgentsConfig) (*OpenAILLM, error) {
+func NewOpenAILLM(ctx context.Context, modelName, effort string, config *config.AgentsConfig) (*OpenAILLM, error) {
 
 	cli := openai.NewClient(
 		option.WithAPIKey(config.OpenAI.ApiKey),
 		option.WithBaseURL(config.OpenAI.BaseUrl),
 	)
 
+	// TODO Get model and configure porperties
+	model, err := cli.Models.Get(
+		ctx,
+		modelName,
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("error get model %s, %w", modelName, err)
+	}
+
+	slog.Debug(fmt.Sprintf("%s", model.RawJSON()))
+
 	return &OpenAILLM{
-		Ctx:    ctx,
-		Client: cli,
+		Ctx:       ctx,
+		Client:    cli,
+		Model:     model,
+		ModelName: modelName,
+		Effort:    effort,
+		Reasoning: false,
 	}, nil
 }
 
@@ -84,7 +105,7 @@ func (llm OpenAILLM) ListModels() (any, error) {
 	return models, nil
 }
 
-func (llm OpenAILLM) Generate(instructions string, messages []string, requestParams providers.RequestParams) []string {
+func (llm OpenAILLM) Generate(instructions string, messages []string, req providers.RequestParams) ([]string, providers.FinishReason, error) {
 
 	msgs := []openai.ChatCompletionMessageParamUnion{}
 
@@ -94,52 +115,51 @@ func (llm OpenAILLM) Generate(instructions string, messages []string, requestPar
 		msgs = append(msgs, openai.UserMessage(message))
 	}
 
-	param := openai.ChatCompletionNewParams{
-		Messages: msgs,
-		Tools:    llm.Tools,
-		Model:    llm.Model,
+	query := openai.ChatCompletionNewParams{
+		Messages:    msgs,
+		Model:       llm.Model.ID,
+		Temperature: param.NewOpt(req.Temperature),
 	}
 
-	completion, err := llm.Client.Chat.Completions.New(llm.Ctx, param)
+	if len(llm.Tools) > 0 {
+		query.Tools = llm.Tools
+		query.ParallelToolCalls = param.NewOpt(req.ParallelToolCalls)
+	}
+
+	if llm.Reasoning {
+		query.MaxCompletionTokens = param.NewOpt(req.MaxTokens)
+		query.ReasoningEffort = shared.ReasoningEffort(req.ReasoningEffort)
+	} else {
+		query.MaxTokens = param.NewOpt(req.MaxTokens)
+	}
+
+	completion, err := llm.Client.Chat.Completions.New(llm.Ctx, query)
 	if err != nil {
-		slog.Error(fmt.Sprintf("%s", err))
+		return nil, "", err
 	}
 
 	toolCalls := completion.Choices[0].Message.ToolCalls
 
-	// Return early if there are no tool calls
-	if len(toolCalls) == 0 {
-		slog.Info("No function call")
-		return []string{}
-	}
+	slog.Info(fmt.Sprintf("%+v", toolCalls))
+
+	choices := completion.Choices
+
+	slog.Info(fmt.Sprintf("%+v", choices[0].FinishReason))
 
 	// slog.Info(fmt.Sprintf("%+v", completion))
-	return []string{completion.Choices[0].Message.Content}
+	return []string{completion.Choices[0].Message.Content}, providers.FinishReason(choices[0].FinishReason), nil
 }
 
-func (llm OpenAILLM) GenerateStr(instructions string, messages []string, requestParams providers.RequestParams) string {
-	msgs := []openai.ChatCompletionMessageParamUnion{}
+func (llm OpenAILLM) GenerateStr(instructions string, message string, req providers.RequestParams) (string, providers.FinishReason, error) {
 
-	msgs = append(msgs, openai.SystemMessage(instructions))
-
-	for _, message := range messages {
-		msgs = append(msgs, openai.UserMessage(message))
-	}
-
-	param := openai.ChatCompletionNewParams{
-		Messages: msgs,
-		Tools:    llm.Tools,
-		Model:    llm.Model,
-	}
-
-	completion, err := llm.Client.Chat.Completions.New(llm.Ctx, param)
+	result, finish, err := llm.Generate(instructions, []string{message}, req)
 	if err != nil {
-		slog.Error(fmt.Sprintf("%s", err))
+		return "", "", err
 	}
-	slog.Info(completion.Choices[0].Message.Content)
-	return completion.Choices[0].Message.Content
+	return result[0], finish, nil
 }
 
-func (llm OpenAILLM) GenerateStructured(instructions string, message []string, reponseStruct any, requestParams providers.RequestParams) {
+func (llm OpenAILLM) GenerateStructured(instructions string, message []string, reponseStruct any, req providers.RequestParams) (any, providers.FinishReason, error) {
 
+	return nil, "", nil
 }

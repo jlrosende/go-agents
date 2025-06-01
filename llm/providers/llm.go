@@ -5,20 +5,39 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
+type ReasoningEffort string
+
+const (
+	REASONING_EFFORT_HIGH   ReasoningEffort = "high"
+	REASONING_EFFORT_MEDIUM ReasoningEffort = "medium"
+	REASONING_EFFORT_LOW    ReasoningEffort = "low"
+)
+
 type RequestParams struct {
 	UseHistory        bool
 	ParallelToolCalls bool
-	MaxIterations     uint
-	MaxTokens         uint
+	MaxIterations     int
+	MaxTokens         int64
 	Temperature       float64
+	Reasoning         bool
+	ReasoningEffort   ReasoningEffort
 }
+
+type FinishReason string
+
+const (
+	FINISH_REASON_STOP           FinishReason = "stop"
+	FINISH_REASON_LENGHT         FinishReason = "length"
+	FINISH_REASON_CONTENT_FILTER FinishReason = "content_filter"
+	FINISH_REASON_TOOL_CALLS     FinishReason = "tool_calls"
+)
 
 type LLM interface {
 	// TODO Request params need more tuning
 	AttachTools(tools []mcp.Tool)
-	Generate(instructions string, message []string, requestParams RequestParams) []string
-	GenerateStr(instructions string, message []string, requestParams RequestParams) string
-	GenerateStructured(instructions string, message []string, reponseStruct any, requestParams RequestParams)
+	Generate(instructions string, message []string, requestParams RequestParams) ([]string, FinishReason, error)
+	GenerateStr(instructions string, message string, requestParams RequestParams) (string, FinishReason, error)
+	GenerateStructured(instructions string, message []string, reponseStruct any, requestParams RequestParams) (any, FinishReason, error)
 }
 
 func GenerateSchema[T any]() interface{} {
