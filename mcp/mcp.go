@@ -21,6 +21,7 @@ type MCPServer struct {
 	ctx    context.Context
 	Name   string
 	client *client.Client
+	tools  map[string]struct{}
 }
 
 func NewMCPServer(ctx context.Context, name string, transport Transport, url, command string, environments map[string]string, args ...string) (*MCPServer, error) {
@@ -74,14 +75,14 @@ func (server *MCPServer) Start() error {
 	return nil
 }
 
-func (server *MCPServer) ListTools() (*mcp.ListToolsResult, error) {
+func (server *MCPServer) ListTools() ([]mcp.Tool, error) {
 	tools, err := server.client.ListTools(server.ctx, mcp.ListToolsRequest{})
 
 	if err != nil {
 		return nil, fmt.Errorf("error list tools mcp server %s, %w", server.Name, err)
 	}
 
-	return tools, nil
+	return tools.Tools, nil
 }
 
 func (server *MCPServer) CallTool(name string, args any) (*mcp.CallToolResult, error) {

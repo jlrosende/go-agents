@@ -1,6 +1,20 @@
 package llm
 
-import "strings"
+import (
+	"context"
+	"fmt"
+	"strings"
+
+	"github.com/jlrosende/go-agents/config"
+	"github.com/jlrosende/go-agents/llm/providers"
+	"github.com/jlrosende/go-agents/llm/providers/anthropic"
+	"github.com/jlrosende/go-agents/llm/providers/azure"
+	"github.com/jlrosende/go-agents/llm/providers/deepseek"
+	"github.com/jlrosende/go-agents/llm/providers/generic"
+	"github.com/jlrosende/go-agents/llm/providers/google"
+	"github.com/jlrosende/go-agents/llm/providers/openai"
+	"github.com/jlrosende/go-agents/llm/providers/tensrozero"
+)
 
 type Provider string
 
@@ -23,11 +37,34 @@ const (
 	REASONING_EFFORT_LOW    ReasoningEffort = "low"
 )
 
-func ParseModel(model string) (string, string, string) {
-	a := strings.Split(model, ".")
-	provider := a[0]
-	model_name := a[1]
-	reasoning_effort := a[2]
+func unpackModel(model string, vars ...*string) {
+	for i, str := range strings.SplitN(model, ".", 3) {
+		*vars[i] = str
+	}
+}
 
-	return provider, model_name, reasoning_effort
+func NewLLM(ctx context.Context, model string, config *config.AgentsConfig) (providers.LLM, error) {
+	var provider, name, effort string
+
+	unpackModel(model, &provider, &name, &effort)
+
+	switch Provider(provider) {
+	case LLM_PROVIDER_ANTHROPIC:
+		return anthropic.NewAnthropicLLM(ctx, config)
+	case LLM_PROVIDER_AZURE:
+		return azure.NewAzureLLM(ctx, config)
+	case LLM_PROVIDER_DEEPSEEK:
+		return deepseek.NewDeepSeekLLM(ctx, config)
+	case LLM_PROVIDER_GENERIC:
+		return generic.NewGenericLLM(ctx, config)
+	case LLM_PROVIDER_GOOGLE:
+		return google.NewGoogleLLM(ctx, config)
+	case LLM_PROVIDER_OPENAI:
+		return openai.NewOpenAILLM(ctx, config)
+	case LLM_PROVIDER_OPENROUTER:
+		return tensrozero.NewTensorZeroLLM(ctx, config)
+	case LLM_PROVIDER_TENSORZERO:
+		return tensrozero.NewTensorZeroLLM(ctx, config)
+	}
+	return nil, fmt.Errorf("provider not suported")
 }

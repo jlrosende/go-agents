@@ -9,9 +9,8 @@ import (
 )
 
 type AgentsConfig struct {
-	Model  string `mapstructure:"model"`
-	Agents Agents `mapstructure:"agents"`
-	MCP    MCP    `mapstructure:"mcp"`
+	Agents map[string]Agent `mapstructure:"agents"`
+	MCP    MCP              `mapstructure:"mcp"`
 
 	OpenAI     OpenAI     `mapstructure:"openai"`
 	Anthropic  Anthropic  `mapstructure:"anthropic"`
@@ -21,6 +20,8 @@ type AgentsConfig struct {
 	DeepSeek   DeepSeek   `mapstructure:"deepseek"`
 	OpenRouter OpenRouter `mapstructure:"openrouter"`
 	TensorZero TensorZero `mapstructure:"tensorzero"`
+
+	Logger Logger
 }
 
 type MCP struct {
@@ -36,12 +37,13 @@ type MCPServer struct {
 	Environments map[string]string `mapstructure:"env"`
 }
 
-type Agents struct {
-	Agents map[string]Agent
-}
-
 type Agent struct {
-	Url string `mapstructure:"url"`
+	Url          string   `mapstructure:"url"`
+	Model        string   `mapstructure:"model"`
+	Instructions string   `mapstructure:"instructions"`
+	Servers      []string `mapstructure:"servers"`
+	IncludeTools []string `mapstructure:"include_tools"`
+	ExcludeTools []string `mapstructure:"exclude_tools"`
 }
 
 type Anthropic struct {
@@ -85,6 +87,12 @@ type TensorZero struct {
 	BaseUrl string `mapstructure:"base_url"`
 }
 
+type Logger struct {
+	Type  string `mapstructure:"type"`
+	Level string `mapstructure:"level"`
+	Path  string `mapstructure:"path"`
+}
+
 func LoadConfig() (*AgentsConfig, error) {
 	var agentsConfig AgentsConfig
 
@@ -93,6 +101,7 @@ func LoadConfig() (*AgentsConfig, error) {
 	config.SetConfigType("yaml")
 	config.AddConfigPath(".")
 
+	// LLM defaults
 	config.SetDefault("openai.base_url", "")
 	config.SetDefault("generic.base_url", "http://localhost:11434/v1")
 	config.SetDefault("deepseek.base_url", "https://api.deepseek.com/v1")
@@ -100,17 +109,23 @@ func LoadConfig() (*AgentsConfig, error) {
 	config.SetDefault("openrouter.base_url", "https://openrouter.ai/api/v1/")
 	config.SetDefault("google.base_url", "https://generativelanguage.googleapis.com/v1beta/openai/")
 
+	// logger defaults
+	config.SetDefault("logger.type", "console")
+	config.SetDefault("logger.level", "warn")
+	config.SetDefault("logger.path", "agent.jsonl")
+
 	config.SetEnvPrefix("agents")
 	// secrets.AllowEmptyEnv(true)
 	config.AutomaticEnv()
 
 	if err := config.ReadInConfig(); err != nil {
-		slog.Info("ERROR", "err", err)
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 			// Config file not found; ignore error if desired
 			return nil, fmt.Errorf("error loading configs. %w", err)
 		}
 	}
+
+	slog.Debug(fmt.Sprintf("loaded config file %s", config.ConfigFileUsed()))
 
 	secrets := viper.New()
 	secrets.SetConfigName("agents.secrets")
@@ -122,12 +137,13 @@ func LoadConfig() (*AgentsConfig, error) {
 	secrets.AutomaticEnv()
 
 	if err := secrets.ReadInConfig(); err != nil {
-		slog.Info("ERROR", "err", err)
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 			// Config file not found; ignore error if desired
 			return nil, fmt.Errorf("error loading secrets. %w", err)
 		}
 	}
+
+	slog.Debug(fmt.Sprintf("loaded secrets file %s", secrets.ConfigFileUsed()))
 
 	config.MergeConfigMap(secrets.AllSettings())
 

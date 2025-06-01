@@ -1,25 +1,16 @@
-model: openai.o3-mini
+model: &model openai.o3-mini
 
 agents:
   agent_one:
     url: "http://localhost:8000/"
-    model: openai.o3-mini
+    model: *model
     instructions: |
-      asasasas
+      You are a AI asistant
     servers: 
       - filesystem
-    include_tools:
+    include_tools: 
       - read_file
-    exclude_tools:
-      - write_file
-    request_params:
-      temperature: 0.7
-      max_tokens: 8192
-      use_history: false
-      max_iterations: 20
-      parallel_tool_calls: true
-      response_format: {} # any
-      template_vars: {} # map[string]any
+
 mcp:
   servers:
     filesystem:
@@ -35,8 +26,12 @@ openai:
 
 azure:
   api_version: "2024-12-01-preview"
-  azure_deployment: "o3-mini"
 
 generic:
   api_key: ollama
   base_url: http://ollama:11434/v1
+
+logger:
+  type: "console"  # "console", "file"
+  level: "debug"  # "debug", "info", "warn", "error", "fatal"
+  path: "agent.jsonl"  # Path to log file (for "file" type)

@@ -3,6 +3,7 @@ services:
     image: mcr.microsoft.com/devcontainers/go:1-1.24-bullseye
     volumes:
       - ../..:/workspaces:cached
+      - /var/run/docker.sock:/var/run/docker.sock
     command: sleep infinity
 
   ollama:
