@@ -98,7 +98,7 @@ func (server *MCPServer) CallTool(name string, args any) (*mcp.CallToolResult, e
 	})
 
 	if err != nil {
-		return nil, fmt.Errorf("error list tools mcp server %s, %w", server.Name, err)
+		return nil, fmt.Errorf("error call tool %s on mcp server %s, %w", name, server.Name, err)
 	}
 
 	return result, nil

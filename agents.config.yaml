@@ -1,17 +1,23 @@
-model: &model generic.qwen3
-# model: &model openai.o3-mini
+# model: &model azure.o3-mini
+# model: &model generic.qwen3
+model: &model openai.o3-mini
 
 agents:
   agent_one:
     # url: "http://localhost:8000/"
     model: *model
     instructions: |
-      You are a AI
-    servers: 
+      You are an AI assistant
+    servers:
       - filesystem
-    include_tools: 
+    include_tools:
       - read_file
-    request_params: {}
+    request_params:
+      use_history: true
+      max_iterations: 20
+      max_tokens: 8196
+      parallel_tool_calls: true
+      # temperature: 0.7
 
 mcp:
   servers:
@@ -34,6 +40,6 @@ generic:
   base_url: http://ollama:11434/v1/
 
 logger:
-  type: "console"  # "console", "file"
-  level: "debug"  # "debug", "info", "warn", "error", "fatal"
-  path: "agent.jsonl"  # Path to log file (for "file" type)
+  type: "console" # "console", "file"
+  level: "debug" # "debug", "info", "warn", "error", "fatal"
+  path: "agent.jsonl" # Path to log file (for "file" type)

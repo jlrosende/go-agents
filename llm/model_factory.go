@@ -44,7 +44,7 @@ func NewLLM(ctx context.Context, model string, config *config.AgentsConfig) (pro
 	case LLM_PROVIDER_ANTHROPIC:
 		return anthropic.NewAnthropicLLM(ctx, config)
 	case LLM_PROVIDER_AZURE:
-		return azure.NewAzureLLM(ctx, config)
+		return azure.NewAzureLLM(ctx, name, effort, config)
 	case LLM_PROVIDER_DEEPSEEK:
 		return deepseek.NewDeepSeekLLM(ctx, config)
 	case LLM_PROVIDER_GENERIC:

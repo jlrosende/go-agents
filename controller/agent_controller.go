@@ -9,6 +9,7 @@ import (
 	"github.com/jlrosende/go-agents/agents"
 	"github.com/jlrosende/go-agents/config"
 	"github.com/jlrosende/go-agents/llm"
+	"github.com/jlrosende/go-agents/llm/providers"
 	"github.com/jlrosende/go-agents/mcp"
 )
 
@@ -62,6 +63,15 @@ func NewAgentsController() (*AgentsController, error) {
 			agent.Servers,
 			agent.IncludeTools,
 			agent.ExcludeTools,
+			providers.RequestParams{
+				UseHistory:        agent.RequestParams.UseHistory,
+				ParallelToolCalls: agent.RequestParams.ParallelToolCalls,
+				MaxIterations:     agent.RequestParams.MaxIterations,
+				MaxTokens:         agent.RequestParams.MaxTokens,
+				Temperature:       agent.RequestParams.Temperature,
+				Reasoning:         true,
+				ReasoningEffort:   providers.REASONING_EFFORT_MEDIUM,
+			},
 		)
 	}
 
@@ -137,7 +147,9 @@ func (controller *AgentsController) Run() error {
 
 		agent.AttachLLM(llm)
 
-		agent.Initialize()
+		if err := agent.Initialize(); err != nil {
+			return err
+		}
 	}
 
 	slog.Debug("agents loaded")

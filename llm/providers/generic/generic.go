@@ -43,7 +43,6 @@ func NewGenericLLM(ctx context.Context, modelName, effort string, config *config
 			Model:     model,
 			ModelName: modelName,
 			Effort:    effort,
-			Reasoning: true,
 		},
 	}, nil
 }

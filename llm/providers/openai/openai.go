@@ -7,6 +7,7 @@ import (
 
 	"github.com/jlrosende/go-agents/config"
 	"github.com/jlrosende/go-agents/llm/providers"
+	"github.com/jlrosende/go-agents/memory"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
@@ -15,13 +16,19 @@ import (
 )
 
 type OpenAILLM struct {
-	Ctx       context.Context
-	Client    openai.Client
-	Tools     []openai.ChatCompletionToolParam
+	Ctx    context.Context
+	Client openai.Client
+
+	Provider string
+
+	Tools []openai.ChatCompletionToolParam
+
 	ModelName string
-	Effort    string
-	Reasoning bool
 	Model     *openai.Model
+
+	Effort string
+
+	Logger *slog.Logger
 }
 
 var _ providers.LLM = (*OpenAILLM)(nil)
@@ -33,26 +40,32 @@ func NewOpenAILLM(ctx context.Context, modelName, effort string, config *config.
 		option.WithBaseURL(config.OpenAI.BaseUrl),
 	)
 
-	// TODO Get model and configure porperties
-	model, err := cli.Models.Get(
-		ctx,
-		modelName,
-	)
-
-	if err != nil {
-		return nil, fmt.Errorf("error get model %s, %w", modelName, err)
-	}
-
-	slog.Debug(fmt.Sprintf("%s", model.RawJSON()))
-
 	return &OpenAILLM{
 		Ctx:       ctx,
 		Client:    cli,
-		Model:     model,
 		ModelName: modelName,
 		Effort:    effort,
-		Reasoning: false,
 	}, nil
+}
+
+func (llm *OpenAILLM) Initialize() error {
+	model, err := llm.GetModel(llm.ModelName)
+
+	if err != nil {
+		return fmt.Errorf("error init llm, get model %s, %w", llm.ModelName, err)
+	}
+
+	logger := slog.Default()
+	logger = logger.With(
+		slog.String("provider", "openai"),
+		slog.String("model", llm.ModelName),
+	)
+
+	llm.Logger = logger
+
+	llm.Model = model.(*openai.Model)
+
+	return nil
 }
 
 func (llm *OpenAILLM) AttachTools(tools []mcp.Tool) {
@@ -105,28 +118,46 @@ func (llm OpenAILLM) ListModels() (any, error) {
 	return models, nil
 }
 
-func (llm OpenAILLM) Generate(instructions string, messages []string, req providers.RequestParams) ([]string, providers.FinishReason, error) {
+func (llm OpenAILLM) Generate(instructions string, messages []memory.Message, req providers.RequestParams) ([]openai.ChatCompletionChoice, error) {
 
 	msgs := []openai.ChatCompletionMessageParamUnion{}
 
 	msgs = append(msgs, openai.SystemMessage(instructions))
 
 	for _, message := range messages {
-		msgs = append(msgs, openai.UserMessage(message))
+		slog.Debug(fmt.Sprintf("%+v", message))
+		switch message.Type {
+		case memory.MESSAGE_TYPE_ASSISTANT:
+			msgs = append(msgs, openai.AssistantMessage(message.Content))
+		case memory.MESSAGE_TYPE_TOOL:
+			msgs = append(msgs, openai.ToolMessage(message.Content, message.ToolCallID))
+		case memory.MESSAGE_TYPE_USER:
+			msgs = append(msgs, openai.UserMessage(message.Content))
+		case memory.MESSAGE_TYPE_DEVELOPER:
+			msgs = append(msgs, openai.DeveloperMessage(message.Content))
+		case memory.MESSAGE_TYPE_SYSTEM:
+			msgs = append(msgs, openai.SystemMessage(message.Content))
+		}
 	}
 
 	query := openai.ChatCompletionNewParams{
-		Messages:    msgs,
-		Model:       llm.Model.ID,
-		Temperature: param.NewOpt(req.Temperature),
+		Messages: msgs,
+		Model:    llm.Model.ID,
+	}
+
+	if req.Temperature > 0 {
+		query.Temperature = param.NewOpt(req.Temperature)
 	}
 
 	if len(llm.Tools) > 0 {
 		query.Tools = llm.Tools
-		query.ParallelToolCalls = param.NewOpt(req.ParallelToolCalls)
+
+		if req.ParallelToolCalls {
+			query.ParallelToolCalls = param.NewOpt(req.ParallelToolCalls)
+		}
 	}
 
-	if llm.Reasoning {
+	if req.Reasoning {
 		query.MaxCompletionTokens = param.NewOpt(req.MaxTokens)
 		query.ReasoningEffort = shared.ReasoningEffort(req.ReasoningEffort)
 	} else {
@@ -134,8 +165,9 @@ func (llm OpenAILLM) Generate(instructions string, messages []string, req provid
 	}
 
 	completion, err := llm.Client.Chat.Completions.New(llm.Ctx, query)
+
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 
 	toolCalls := completion.Choices[0].Message.ToolCalls
@@ -147,19 +179,10 @@ func (llm OpenAILLM) Generate(instructions string, messages []string, req provid
 	slog.Info(fmt.Sprintf("%+v", choices[0].FinishReason))
 
 	// slog.Info(fmt.Sprintf("%+v", completion))
-	return []string{completion.Choices[0].Message.Content}, providers.FinishReason(choices[0].FinishReason), nil
+	return completion.Choices, nil
 }
 
-func (llm OpenAILLM) GenerateStr(instructions string, message string, req providers.RequestParams) (string, providers.FinishReason, error) {
+func (llm OpenAILLM) GenerateStructured(instructions string, messages []memory.Message, reponseStruct any, req providers.RequestParams) (any, error) {
 
-	result, finish, err := llm.Generate(instructions, []string{message}, req)
-	if err != nil {
-		return "", "", err
-	}
-	return result[0], finish, nil
-}
-
-func (llm OpenAILLM) GenerateStructured(instructions string, message []string, reponseStruct any, req providers.RequestParams) (any, providers.FinishReason, error) {
-
-	return nil, "", nil
+	return nil, nil
 }

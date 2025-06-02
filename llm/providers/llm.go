@@ -2,7 +2,9 @@ package providers
 
 import (
 	"github.com/invopop/jsonschema"
+	"github.com/jlrosende/go-agents/memory"
 	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/openai/openai-go"
 )
 
 type ReasoningEffort string
@@ -34,10 +36,12 @@ const (
 
 type LLM interface {
 	// TODO Request params need more tuning
+	Initialize() error
+	GetModel(name string) (any, error)
+	ListModels() (any, error)
 	AttachTools(tools []mcp.Tool)
-	Generate(instructions string, message []string, requestParams RequestParams) ([]string, FinishReason, error)
-	GenerateStr(instructions string, message string, requestParams RequestParams) (string, FinishReason, error)
-	GenerateStructured(instructions string, message []string, reponseStruct any, requestParams RequestParams) (any, FinishReason, error)
+	Generate(instructions string, message []memory.Message, requestParams RequestParams) ([]openai.ChatCompletionChoice, error)
+	GenerateStructured(instructions string, message []memory.Message, reponseStruct any, requestParams RequestParams) (any, error)
 }
 
 func GenerateSchema[T any]() interface{} {

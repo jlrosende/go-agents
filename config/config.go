@@ -48,11 +48,11 @@ type Agent struct {
 }
 
 type RequestParams struct {
-	UseHistory      bool    `mapstructure:"use_history"`
-	MaxIterations   uint    `mapstructure:"max_iterations"`
-	MaxTokens       int64   `mapstructure:"max_tokens"`
-	Temperature     float64 `mapstructure:"temperature"`
-	ReasoningEffort string  `mapstructure:"ReasoningEffort"`
+	UseHistory        bool    `mapstructure:"use_history"`
+	ParallelToolCalls bool    `mapstructure:"parallel_tool_calls"`
+	MaxIterations     int     `mapstructure:"max_iterations"`
+	MaxTokens         int64   `mapstructure:"max_tokens"`
+	Temperature       float64 `mapstructure:"temperature"`
 }
 
 type Anthropic struct {

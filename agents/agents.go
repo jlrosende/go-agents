@@ -2,12 +2,14 @@ package agents
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"log/slog"
 	"slices"
-	"strings"
 
 	"github.com/jlrosende/go-agents/llm/providers"
 	"github.com/jlrosende/go-agents/mcp"
+	"github.com/jlrosende/go-agents/memory"
 	mcp_tool "github.com/mark3labs/mcp-go/mcp"
 )
 
@@ -22,18 +24,21 @@ type Agent struct {
 	ExcludeTools []string
 	MCPServers   map[string]*mcp.MCPServer
 
+	// Fast access to the tool name and their servers
+	ToolsServers map[string]*mcp.MCPServer
+
 	logger *slog.Logger
 
 	// LLM
 	Model        string
 	Instructions string
 	LLM          providers.LLM
-	Memory       *Memory
+	Memory       *memory.Memory
 
 	RequestParams providers.RequestParams
 }
 
-func NewAgent(ctx context.Context, name, model, instructions string, servers, includeTools, excludeTools []string) *Agent {
+func NewAgent(ctx context.Context, name, model, instructions string, servers, includeTools, excludeTools []string, reqParams providers.RequestParams) *Agent {
 
 	logger := slog.Default()
 	logger = logger.With(
@@ -56,18 +61,11 @@ func NewAgent(ctx context.Context, name, model, instructions string, servers, in
 
 		Model:        model,
 		Instructions: instructions,
-		Memory:       new(Memory),
+		Memory:       new(memory.Memory),
 		MCPServers:   map[string]*mcp.MCPServer{},
+		ToolsServers: map[string]*mcp.MCPServer{},
 
-		RequestParams: providers.RequestParams{
-			UseHistory:        false,
-			ParallelToolCalls: true,
-			MaxIterations:     20,
-			MaxTokens:         8192,
-			Temperature:       0.7,
-			Reasoning:         true,
-			ReasoningEffort:   providers.REASONING_EFFORT_MEDIUM,
-		},
+		RequestParams: reqParams,
 	}
 }
 
@@ -76,6 +74,13 @@ func (a *Agent) AttachLLM(llm providers.LLM) {
 }
 
 func (a *Agent) Initialize() error {
+
+	err := a.LLM.Initialize()
+
+	if err != nil {
+		return fmt.Errorf("error intilize llm in agent %s, %w", a.Name, err)
+	}
+
 	// Init clients and create missing configurations
 	attach := []mcp_tool.Tool{}
 
@@ -96,6 +101,8 @@ func (a *Agent) Initialize() error {
 			}
 
 			attach = append(attach, tool)
+
+			a.ToolsServers[tool.Name] = server
 		}
 	}
 
@@ -111,21 +118,22 @@ func (a *Agent) AttachMCPServers(servers map[string]*mcp.MCPServer) {
 }
 
 func (a Agent) Send(message string) (string, error) {
-	// If use history is true, load memory in conversation
-	response := []string{message}
+	// If use history is false, clean memory bedofore each interaction
+
+	if !a.RequestParams.UseHistory {
+		a.Memory.Clear()
+	}
+
+	a.Memory.Append(memory.Message{Type: memory.MESSAGE_TYPE_USER, Content: message})
 
 stop:
 	for _ = range a.RequestParams.MaxIterations {
-		resp, finish, err := a.LLM.Generate(a.Instructions, response, a.RequestParams)
+		choices, err := a.LLM.Generate(a.Instructions, a.Memory.Get(), a.RequestParams)
 		if err != nil {
 			return "", err
 		}
 
-		response = resp
-
-		slog.Error(string(finish))
-
-		switch finish {
+		switch providers.FinishReason(choices[0].FinishReason) {
 		case providers.FINISH_REASON_STOP:
 			break stop
 		case providers.FINISH_REASON_LENGHT:
@@ -134,25 +142,49 @@ stop:
 			break stop
 		case providers.FINISH_REASON_TOOL_CALLS:
 			slog.Debug(string(providers.FINISH_REASON_TOOL_CALLS))
-			// TODO Call tools to use
-			continue
+			// Call tools to use
+
+			for _, tool := range choices[0].Message.ToolCalls {
+				if server, ok := a.ToolsServers[tool.Function.Name]; ok {
+					var args map[string]interface{}
+					err := json.Unmarshal([]byte(tool.Function.Arguments), &args)
+					if err != nil {
+						panic(err)
+					}
+					toolRes, err := server.CallTool(tool.Function.Name, args)
+					if err != nil {
+						return "", err
+					}
+
+					if toolRes.IsError {
+						break
+					}
+					content := fmt.Sprintf("%+v", toolRes)
+
+					slog.Debug(content)
+
+					a.Memory.Append(memory.Message{Type: memory.MESSAGE_TYPE_TOOL, Content: content, ToolCallID: tool.ID})
+					break
+				}
+			}
 		}
+
+		// a.Memory.Append(memory.Message{Type: memory.MESSAGE_TYPE_ASSISTANT, Content: choices[0].Message.Content})
 	}
 
-	return strings.Join(response, ""), nil
+	response := a.Memory.Get()[len(a.Memory.Get())-1]
+
+	return response.Content, nil
 }
 
 func (a Agent) Generate(message string) (string, error) {
-	response, _, err := a.LLM.Generate(a.Instructions, []string{message}, a.RequestParams)
+	// choices, _, err := a.LLM.Generate(a.Instructions, []string{message}, a.RequestParams)
 	// slog.Info(strings.Join(response, "\n"))
 
-	return strings.Join(response, ""), err
+	// return strings.Join("", ""), err
+	return "", nil
 }
 
 func (a Agent) Structured(message string, responseStruct any) string {
 	return "Agent response"
-}
-
-func (a Agent) CallTool() {
-
 }
