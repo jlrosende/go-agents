@@ -3,41 +3,25 @@ package memory
 import "slices"
 
 type Memory struct {
-	history []Message
+	history []any
 }
 
-func (m *Memory) Extend(messages []Message) {
+func (m *Memory) Extend(messages []any) {
 	m.history = append(m.history, messages...)
 }
 
-func (m *Memory) Set(messages []Message) {
+func (m *Memory) Set(messages []any) {
 	m.history = slices.Clone(messages)
 }
 
-func (m *Memory) Append(message Message) {
+func (m *Memory) Append(message any) {
 	m.history = append(m.history, message)
 }
 
-func (m Memory) Get() []Message {
+func (m Memory) Get() []any {
 	return slices.Clone(m.history)
 }
 
 func (m *Memory) Clear() {
-	m.history = make([]Message, 0)
-}
-
-type MessageType string
-
-const (
-	MESSAGE_TYPE_DEVELOPER  MessageType = "developer"
-	MESSAGE_TYPE_SYSTEM     MessageType = "system"
-	MESSAGE_TYPE_USER       MessageType = "user"
-	MESSAGE_TYPE_ASSISTANT  MessageType = "assistant"
-	MESSAGE_TYPE_TOOL       MessageType = "tool"
-)
-
-type Message struct {
-	Type       MessageType
-	Content    string
-	ToolCallID string
+	m.history = make([]any, 0)
 }

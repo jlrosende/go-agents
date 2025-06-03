@@ -69,7 +69,7 @@ func NewAgentsController() (*AgentsController, error) {
 				MaxIterations:     agent.RequestParams.MaxIterations,
 				MaxTokens:         agent.RequestParams.MaxTokens,
 				Temperature:       agent.RequestParams.Temperature,
-				Reasoning:         false,
+				Reasoning:         true,
 				ReasoningEffort:   providers.REASONING_EFFORT_MEDIUM,
 			},
 		)
@@ -140,7 +140,7 @@ func (controller *AgentsController) Run() error {
 	// Start all Agents
 	for _, agent := range controller.Agents {
 		agent.AttachMCPServers(controller.MCPServers)
-		llm, err := llm.NewLLM(controller.ctx, agent.Model, controller.Config)
+		llm, err := llm.NewLLM(controller.ctx, agent.Model, agent.Instructions, agent.RequestParams, controller.Config)
 		if err != nil {
 			return err
 		}

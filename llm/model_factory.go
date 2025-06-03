@@ -35,7 +35,7 @@ func unpackModel(model string, vars ...*string) {
 	}
 }
 
-func NewLLM(ctx context.Context, model string, config *config.AgentsConfig) (providers.LLM, error) {
+func NewLLM(ctx context.Context, model, instructions string, req providers.RequestParams, config *config.AgentsConfig) (providers.LLM, error) {
 	var provider, name, effort string
 
 	unpackModel(model, &provider, &name, &effort)
@@ -52,7 +52,7 @@ func NewLLM(ctx context.Context, model string, config *config.AgentsConfig) (pro
 	case LLM_PROVIDER_GOOGLE:
 		return google.NewGoogleLLM(ctx, config)
 	case LLM_PROVIDER_OPENAI:
-		return openai.NewOpenAILLM(ctx, name, effort, config)
+		return openai.NewOpenAILLM(ctx, name, effort, instructions, req, config)
 	case LLM_PROVIDER_OPENROUTER:
 		return tensrozero.NewTensorZeroLLM(ctx, config)
 	case LLM_PROVIDER_TENSORZERO:

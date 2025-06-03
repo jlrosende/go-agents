@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log/slog"
 	"os"
 
 	"github.com/jlrosende/go-agents/controller"
@@ -29,12 +28,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	response, err := agent.Send("Please give me a template of a proper README.md file")
+	response, err := agent.Generate("Plese read and analize the README.md file, then give me a better readme template")
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	slog.Info(response)
+	fmt.Fprintln(os.Stderr, response)
 
 	// ctx := context.Background()
 

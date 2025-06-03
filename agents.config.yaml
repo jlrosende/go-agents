@@ -1,7 +1,7 @@
 # model: &model azure.o3-mini
 # model: &model generic.qwen3
-# model: &model openai.o3-mini
-model: &model openai.gpt-4o
+model: &model openai.o3-mini
+# model: &model openai.gpt-4o
 
 agents:
   agent_one:
@@ -29,10 +29,10 @@ mcp:
       command: "uvx"
       args: ["mcp-server-fetch"]
 
-openai:
-  # base_url: https://api.business.githubcopilot.com/
-  # base_url: https://api.githubcopilot.com/
-  base_url: https://api.openai.com/v1
+# openai:
+#   base_url: https://api.business.githubcopilot.com/
+#   base_url: https://api.githubcopilot.com/
+#   base_url: https://api.openai.com/v1
 
 azure:
   api_version: "2024-12-01-preview"

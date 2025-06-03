@@ -2,9 +2,7 @@ package providers
 
 import (
 	"github.com/invopop/jsonschema"
-	"github.com/jlrosende/go-agents/memory"
-	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/openai/openai-go"
+	"github.com/jlrosende/go-agents/mcp"
 )
 
 type ReasoningEffort string
@@ -25,26 +23,17 @@ type RequestParams struct {
 	ReasoningEffort   ReasoningEffort
 }
 
-type FinishReason string
-
-const (
-	FINISH_REASON_STOP           FinishReason = "stop"
-	FINISH_REASON_LENGHT         FinishReason = "length"
-	FINISH_REASON_CONTENT_FILTER FinishReason = "content_filter"
-	FINISH_REASON_TOOL_CALLS     FinishReason = "tool_calls"
-)
-
 type LLM interface {
 	// TODO Request params need more tuning
 	Initialize() error
 	GetModel(name string) (any, error)
 	ListModels() (any, error)
-	AttachTools(tools []mcp.Tool)
-	Generate(instructions string, message []memory.Message, requestParams RequestParams) ([]openai.ChatCompletionChoice, error)
-	GenerateStructured(instructions string, message []memory.Message, reponseStruct any, requestParams RequestParams) (any, error)
+	AttachTools(mcpServers map[string]*mcp.MCPServer, includeTools, excludeTools []string) error
+	Generate(message string) ([]any, error)
+	Structured(message string, reponseStruct any) (any, error)
 }
 
-func GenerateSchema[T any]() interface{} {
+func GenerateSchema[T any]() any {
 	// Structured Outputs uses a subset of JSON schema
 	// These flags are necessary to comply with the subset
 	reflector := jsonschema.Reflector{
