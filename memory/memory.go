@@ -29,11 +29,11 @@ func (m *Memory) Clear() {
 type MessageType string
 
 const (
-	MESSAGE_TYPE_DEVELOPER MessageType = "developer"
-	MESSAGE_TYPE_SYSTEM    MessageType = "system"
-	MESSAGE_TYPE_USER      MessageType = "user"
-	MESSAGE_TYPE_ASSISTANT MessageType = "assistant"
-	MESSAGE_TYPE_TOOL      MessageType = "tool"
+	MESSAGE_TYPE_DEVELOPER  MessageType = "developer"
+	MESSAGE_TYPE_SYSTEM     MessageType = "system"
+	MESSAGE_TYPE_USER       MessageType = "user"
+	MESSAGE_TYPE_ASSISTANT  MessageType = "assistant"
+	MESSAGE_TYPE_TOOL       MessageType = "tool"
 )
 
 type Message struct {

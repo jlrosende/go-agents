@@ -2,6 +2,8 @@ package openai
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -124,11 +126,18 @@ func (llm OpenAILLM) Generate(instructions string, messages []memory.Message, re
 
 	msgs = append(msgs, openai.SystemMessage(instructions))
 
+	llm.Logger.Debug("-----------------------")
 	for _, message := range messages {
-		slog.Debug(fmt.Sprintf("%+v", message))
+		llm.Logger.Debug(fmt.Sprintf("%+v", message))
 		switch message.Type {
 		case memory.MESSAGE_TYPE_ASSISTANT:
-			msgs = append(msgs, openai.AssistantMessage(message.Content))
+			// message.Content
+			assistantMsg := openai.ChatCompletionMessageParamUnion{}
+			err := json.Unmarshal([]byte(message.Content), &assistantMsg)
+			if err != nil {
+				return nil, err
+			}
+			msgs = append(msgs, assistantMsg)
 		case memory.MESSAGE_TYPE_TOOL:
 			msgs = append(msgs, openai.ToolMessage(message.Content, message.ToolCallID))
 		case memory.MESSAGE_TYPE_USER:
@@ -137,6 +146,7 @@ func (llm OpenAILLM) Generate(instructions string, messages []memory.Message, re
 			msgs = append(msgs, openai.DeveloperMessage(message.Content))
 		case memory.MESSAGE_TYPE_SYSTEM:
 			msgs = append(msgs, openai.SystemMessage(message.Content))
+
 		}
 	}
 
@@ -167,18 +177,19 @@ func (llm OpenAILLM) Generate(instructions string, messages []memory.Message, re
 	completion, err := llm.Client.Chat.Completions.New(llm.Ctx, query)
 
 	if err != nil {
-		return nil, err
+		var apierr *openai.Error
+		if errors.As(err, &apierr) {
+			println("---------------------------------------------------------------------") // Prints the serialized HTTP request
+			println(string(apierr.DumpRequest(true)))                                        // Prints the serialized HTTP request
+			println("---------------------------------------------------------------------") // Prints the serialized HTTP request
+			println(string(apierr.DumpResponse(true)))                                       // Prints the serialized HTTP response
+			println("---------------------------------------------------------------------") // Prints the serialized HTTP request
+		}
+
+		return nil, fmt.Errorf("error sending completion %w", err)
 	}
 
-	toolCalls := completion.Choices[0].Message.ToolCalls
-
-	slog.Info(fmt.Sprintf("%+v", toolCalls))
-
-	choices := completion.Choices
-
-	slog.Info(fmt.Sprintf("%+v", choices[0].FinishReason))
-
-	// slog.Info(fmt.Sprintf("%+v", completion))
+	slog.Info(fmt.Sprintf("MESSAGE: %+v", completion.Choices[0].Message.Content))
 	return completion.Choices, nil
 }
 

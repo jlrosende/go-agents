@@ -129,29 +129,52 @@ func (a Agent) Send(message string) (string, error) {
 stop:
 	for _ = range a.RequestParams.MaxIterations {
 		choices, err := a.LLM.Generate(a.Instructions, a.Memory.Get(), a.RequestParams)
+
 		if err != nil {
 			return "", err
 		}
 
+		a.logger.Debug(fmt.Sprintf("FinishReason: %s", choices[0].FinishReason))
+
 		switch providers.FinishReason(choices[0].FinishReason) {
 		case providers.FINISH_REASON_STOP:
+			data, err := choices[0].Message.ToParam().MarshalJSON()
+
+			if err != nil {
+				return "", err
+			}
+
+			a.Memory.Append(memory.Message{Type: memory.MESSAGE_TYPE_ASSISTANT, Content: string(data)})
 			break stop
 		case providers.FINISH_REASON_LENGHT:
 			break stop
 		case providers.FINISH_REASON_CONTENT_FILTER:
 			break stop
 		case providers.FINISH_REASON_TOOL_CALLS:
-			slog.Debug(string(providers.FINISH_REASON_TOOL_CALLS))
 			// Call tools to use
 
+			data, err := choices[0].Message.ToParam().MarshalJSON()
+
+			if err != nil {
+				return "", err
+			}
+
+			a.Memory.Append(memory.Message{Type: memory.MESSAGE_TYPE_ASSISTANT, Content: string(data)})
+
 			for _, tool := range choices[0].Message.ToolCalls {
+
 				if server, ok := a.ToolsServers[tool.Function.Name]; ok {
+
 					var args map[string]interface{}
+
 					err := json.Unmarshal([]byte(tool.Function.Arguments), &args)
+
 					if err != nil {
-						panic(err)
+						return "", err
 					}
+
 					toolRes, err := server.CallTool(tool.Function.Name, args)
+
 					if err != nil {
 						return "", err
 					}
@@ -159,18 +182,33 @@ stop:
 					if toolRes.IsError {
 						break
 					}
-					content := fmt.Sprintf("%+v", toolRes)
 
-					slog.Debug(content)
+					content := ""
+					for _, c := range toolRes.Content {
+						if textContent, ok := c.(mcp_tool.TextContent); ok {
+							content += textContent.Text
+						} else {
+							jsonBytes, _ := json.MarshalIndent(c, "", "  ")
+							content += string(jsonBytes)
+						}
+					}
 
 					a.Memory.Append(memory.Message{Type: memory.MESSAGE_TYPE_TOOL, Content: content, ToolCallID: tool.ID})
-					break
 				}
 			}
-		}
+		default:
 
-		// a.Memory.Append(memory.Message{Type: memory.MESSAGE_TYPE_ASSISTANT, Content: choices[0].Message.Content})
+			data, err := choices[0].Message.ToParam().MarshalJSON()
+
+			if err != nil {
+				return "", err
+			}
+
+			a.Memory.Append(memory.Message{Type: memory.MESSAGE_TYPE_ASSISTANT, Content: string(data)})
+		}
 	}
+
+	a.logger.Warn(fmt.Sprintf("%+v", a.Memory.Get()))
 
 	response := a.Memory.Get()[len(a.Memory.Get())-1]
 

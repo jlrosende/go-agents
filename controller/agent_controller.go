@@ -69,7 +69,7 @@ func NewAgentsController() (*AgentsController, error) {
 				MaxIterations:     agent.RequestParams.MaxIterations,
 				MaxTokens:         agent.RequestParams.MaxTokens,
 				Temperature:       agent.RequestParams.Temperature,
-				Reasoning:         true,
+				Reasoning:         false,
 				ReasoningEffort:   providers.REASONING_EFFORT_MEDIUM,
 			},
 		)

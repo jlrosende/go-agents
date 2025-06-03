@@ -1,13 +1,14 @@
 # model: &model azure.o3-mini
 # model: &model generic.qwen3
 model: &model openai.o3-mini
+# model: &model openai.gpt-4o
 
 agents:
   agent_one:
     # url: "http://localhost:8000/"
     model: *model
     instructions: |
-      You are an AI assistant
+      You are an AI assistant.
     servers:
       - filesystem
     include_tools:
@@ -16,8 +17,8 @@ agents:
       use_history: true
       max_iterations: 20
       max_tokens: 8196
-      parallel_tool_calls: true
-      # temperature: 0.7
+      parallel_tool_calls: false
+      temperature: 0.7
 
 mcp:
   servers:
@@ -31,6 +32,7 @@ mcp:
 openai:
   # base_url: https://api.business.githubcopilot.com/
   base_url: https://api.githubcopilot.com/
+  # base_url: https://api.openai.com/v1
 
 azure:
   api_version: "2024-12-01-preview"
