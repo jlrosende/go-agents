@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/invopop/jsonschema"
 	"github.com/jlrosende/go-agents/llm/providers"
 	"github.com/jlrosende/go-agents/mcp"
 	"github.com/jlrosende/go-agents/memory"
@@ -99,6 +100,23 @@ func (a Agent) Generate(message string) (string, error) {
 	return "", nil
 }
 
-func (a Agent) Structured(message string, responseStruct any) string {
-	return "Agent response"
+func (a Agent) Structured(message string, responseStruct any) (any, error) {
+
+	reflector := jsonschema.Reflector{
+		AllowAdditionalProperties: false,
+		DoNotReference:            true,
+	}
+
+	schema := reflector.Reflect(responseStruct)
+	// return schema
+
+	a.logger.Debug(fmt.Sprintf("AGENT SCHEMA: %+v", schema))
+
+	_, err := a.LLM.Structured(message, schema)
+
+	if err != nil {
+		return "", err
+	}
+
+	return "", nil
 }

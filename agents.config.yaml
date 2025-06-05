@@ -8,7 +8,7 @@ agents:
     # url: "http://localhost:8000/"
     model: *model
     instructions: |
-      You are an AI assistant.
+      Yo are a AI assistant
     servers:
       - filesystem
     include_tools:

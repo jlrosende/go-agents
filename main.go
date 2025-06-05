@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/jlrosende/go-agents/agents/workflows/orchestrator"
 	"github.com/jlrosende/go-agents/controller"
 )
 
@@ -28,7 +29,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	response, err := agent.Generate("Plese read and analize the README.md file, then give me a better readme template")
+	// response, err := agent.Generate("Plese read and analize the README.md file, then give me a better readme template")
+	// if err != nil {
+	// 	fmt.Println(err)
+	// 	os.Exit(1)
+	// }
+	// fmt.Fprintln(os.Stderr, response)]
+
+	response, err := agent.Structured("Plese read and analize the README.md file, then give me a better readme template", orchestrator.Plan{})
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

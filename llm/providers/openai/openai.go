@@ -236,7 +236,7 @@ stop_iter:
 					return nil, fmt.Errorf("error unmarshal args %w", err)
 				}
 
-				llm.Logger.Info("Call tool [%s] %+v", toolCall.Function.Name, args)
+				llm.Logger.Info(fmt.Sprintf("Call tool [%s] %+v", toolCall.Function.Name, args))
 
 				toolRes, err := server.CallTool(toolCall.Function.Name, args)
 
@@ -251,6 +251,15 @@ stop_iter:
 					} else {
 						jsonBytes, _ := json.MarshalIndent(c, "", "  ")
 						content += string(jsonBytes)
+					}
+
+					switch resource := c.(type) {
+					case mcp_tool.TextContent:
+						content += resource.Text
+					case mcp_tool.AudioContent:
+						content += resource.Data
+					case mcp_tool.ImageContent:
+						content += resource.Data
 					}
 				}
 
@@ -273,6 +282,133 @@ stop_iter:
 }
 
 func (llm OpenAILLM) Structured(message string, reponseStruct any) (any, error) {
+
+	schemaParam := openai.ResponseFormatJSONSchemaJSONSchemaParam{
+		Name:        "historical_computer",
+		Description: openai.String("Notable information about a computer"),
+		Schema:      reponseStruct,
+		Strict:      openai.Bool(true),
+	}
+
+	llm.Logger.Debug(fmt.Sprintf("LLM SCHEMA %+v", schemaParam))
+
+	messages := []openai.ChatCompletionMessageParamUnion{}
+
+	messages = append(messages, openai.SystemMessage(llm.Instructions))
+
+	if llm.RequestParams.UseHistory {
+		for _, message := range llm.Memory.Get() {
+			messages = append(messages, message.(openai.ChatCompletionMessageParamUnion))
+		}
+	}
+
+	messages = append(messages, openai.UserMessage(message))
+
+	if llm.RequestParams.UseHistory {
+		llm.Memory.Append(openai.UserMessage(message))
+	}
+
+	query := openai.ChatCompletionNewParams{
+		Messages: messages,
+		ResponseFormat: openai.ChatCompletionNewParamsResponseFormatUnion{
+			OfJSONSchema: &shared.ResponseFormatJSONSchemaParam{
+				JSONSchema: schemaParam,
+			},
+		},
+		Model: llm.Model.ID,
+	}
+
+	if llm.RequestParams.Temperature > 0 {
+		query.Temperature = param.NewOpt(llm.RequestParams.Temperature)
+	}
+
+	if len(llm.Tools) > 0 {
+		query.Tools = llm.Tools
+
+		if llm.RequestParams.ParallelToolCalls {
+			query.ParallelToolCalls = param.NewOpt(llm.RequestParams.ParallelToolCalls)
+		}
+	}
+
+	if llm.RequestParams.Reasoning {
+		query.MaxCompletionTokens = param.NewOpt(llm.RequestParams.MaxTokens)
+		query.ReasoningEffort = shared.ReasoningEffort(llm.RequestParams.ReasoningEffort)
+	} else {
+		query.MaxTokens = param.NewOpt(llm.RequestParams.MaxTokens)
+	}
+
+stop_iter_structured:
+	for _ = range llm.RequestParams.MaxIterations {
+
+		completion, err := llm.Client.Chat.Completions.New(llm.Ctx, query)
+
+		if err != nil {
+			var apierr *openai.Error
+			if errors.As(err, &apierr) {
+				fmt.Fprintln(os.Stderr, string(apierr.DumpRequest(true)))
+				fmt.Fprintln(os.Stderr, string(apierr.DumpResponse(true)))
+			}
+
+			return nil, fmt.Errorf("error sending completion %w", err)
+		}
+
+		llm.Logger.Info(fmt.Sprintf("%s", completion.Choices[0].Message.Content))
+
+		query.Messages = append(query.Messages, completion.Choices[0].Message.ToParam())
+
+		for _, toolCall := range completion.Choices[0].Message.ToolCalls {
+
+			if server, ok := llm.ToolsServers[toolCall.Function.Name]; ok {
+
+				var args map[string]interface{}
+
+				err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args)
+
+				if err != nil {
+					return nil, fmt.Errorf("error unmarshal args %w", err)
+				}
+
+				llm.Logger.Info(fmt.Sprintf("Call tool [%s] %+v", toolCall.Function.Name, args))
+
+				toolRes, err := server.CallTool(toolCall.Function.Name, args)
+
+				if err != nil {
+					return nil, fmt.Errorf("error call tool %s, %w", toolCall.Function.Name, err)
+				}
+
+				content := ""
+				for _, c := range toolRes.Content {
+					if textContent, ok := c.(mcp_tool.TextContent); ok {
+						content += textContent.Text
+					} else {
+						jsonBytes, _ := json.MarshalIndent(c, "", "  ")
+						content += string(jsonBytes)
+					}
+
+					switch resource := c.(type) {
+					case mcp_tool.TextContent:
+						content += resource.Text
+					case mcp_tool.AudioContent:
+						content += resource.Data
+					case mcp_tool.ImageContent:
+						content += resource.Data
+					}
+				}
+
+				if llm.RequestParams.UseHistory {
+					llm.Memory.Append(openai.ToolMessage(content, toolCall.ID))
+				}
+
+				query.Messages = append(query.Messages, openai.ToolMessage(content, toolCall.ID))
+			}
+		}
+
+		switch completion.Choices[0].FinishReason {
+		case "stop", "length", "content_filter":
+			break stop_iter_structured
+		}
+
+	}
 
 	return nil, nil
 }
