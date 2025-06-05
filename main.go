@@ -36,7 +36,10 @@ func main() {
 	// }
 	// fmt.Fprintln(os.Stderr, response)]
 
-	response, err := agent.Structured("Plese read and analize the README.md file, then give me a better readme template", orchestrator.Plan{})
+	response, err := agent.Structured(`
+	Plese read and analize the README.md file, then give me a better readme template
+	Available agents: pumba`,
+		orchestrator.Plan{})
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

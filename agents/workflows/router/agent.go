@@ -1,4 +1,4 @@
-package parallel
+package router
 
 import "github.com/jlrosende/go-agents/agents"
 

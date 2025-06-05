@@ -70,7 +70,7 @@ func NewAgentsController() (*AgentsController, error) {
 				MaxTokens:         agent.RequestParams.MaxTokens,
 				Temperature:       agent.RequestParams.Temperature,
 				Reasoning:         true,
-				ReasoningEffort:   providers.REASONING_EFFORT_MEDIUM,
+				ReasoningEffort:   providers.REASONING_EFFORT_HIGH,
 			},
 		)
 	}
