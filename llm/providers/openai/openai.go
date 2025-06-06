@@ -60,25 +60,24 @@ func NewOpenAILLM(ctx context.Context, modelName, effort, instructions string, r
 		Effort:        effort,
 		Instructions:  instructions,
 		RequestParams: req,
-		Memory:        new(memory.Memory),
-		ToolsServers:  map[string]*mcp.MCPServer{},
 	}, nil
 }
 
 func (llm *OpenAILLM) Initialize() error {
+
+	llm.Memory = new(memory.Memory)
+	llm.ToolsServers = map[string]*mcp.MCPServer{}
+
 	model, err := llm.GetModel(llm.ModelName)
 
 	if err != nil {
 		return fmt.Errorf("error init llm, get model %s, %w", llm.ModelName, err)
 	}
 
-	logger := slog.Default()
-	logger = logger.With(
+	llm.Logger = slog.Default().With(
 		slog.String("provider", "openai"),
 		slog.String("model", llm.ModelName),
 	)
-
-	llm.Logger = logger
 
 	llm.Model = model.(*openai.Model)
 
@@ -284,8 +283,8 @@ stop_iter:
 func (llm OpenAILLM) Structured(message string, reponseStruct any) (any, error) {
 
 	schemaParam := openai.ResponseFormatJSONSchemaJSONSchemaParam{
-		Name:        "historical_computer",
-		Description: openai.String("Notable information about a computer"),
+		Name:        "structured_response",
+		Description: openai.String("A well defined json reponse"),
 		Schema:      reponseStruct,
 		Strict:      openai.Bool(true),
 	}

@@ -1,9 +1,18 @@
 package router
 
-import "github.com/jlrosende/go-agents/agents"
+import (
+	_ "embed"
 
-type Router struct {
-	agents.Agent
+	"github.com/jlrosende/go-agents/agents"
+)
 
-	agents map[string]*agents.Agent
+//go:embed prompt.md
+var routerPrompt string
+
+type RouterAgent struct {
+	agents.BaseAgent
+
+	agents map[string]agents.Agent
 }
+
+var _ agents.Agent = (*RouterAgent)(nil)

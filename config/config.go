@@ -38,6 +38,7 @@ type MCPServer struct {
 }
 
 type Agent struct {
+	Transport     mcp.Transport `mapstructure:"transport"`
 	Url           string        `mapstructure:"url"`
 	Model         string        `mapstructure:"model"`
 	Instructions  string        `mapstructure:"instructions"`

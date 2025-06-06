@@ -11,7 +11,18 @@ import (
 	"github.com/jlrosende/go-agents/memory"
 )
 
-type Agent struct {
+type Agent interface {
+	Initialize() error
+	AttachLLM(llm providers.LLM)
+	AttachMCPServers(servers map[string]*mcp.MCPServer)
+	Generate(message string) (string, error)
+	Structured(message string, responseStruct any) (any, error)
+	GetName() string
+	GetModel() string
+	GetInstructions() string
+	GetRequestParams() providers.RequestParams
+}
+type BaseAgent struct {
 	ctx context.Context
 
 	Name string
@@ -36,17 +47,12 @@ type Agent struct {
 	RequestParams providers.RequestParams
 }
 
-func NewAgent(ctx context.Context, name, model, instructions string, servers, includeTools, excludeTools []string, reqParams providers.RequestParams) *Agent {
+var _ Agent = (*BaseAgent)(nil)
 
-	logger := slog.Default()
-	logger = logger.With(
-		slog.String("agent", name),
-		slog.String("model", model),
-	)
+func NewBaseAgent(ctx context.Context, name, model, instructions string, servers, includeTools, excludeTools []string, reqParams providers.RequestParams) Agent {
 
 	// Init LLM factory with model and tools
-
-	return &Agent{
+	return &BaseAgent{
 		ctx: ctx,
 
 		Name: name,
@@ -54,8 +60,6 @@ func NewAgent(ctx context.Context, name, model, instructions string, servers, in
 		Servers:      servers,
 		IncludeTools: includeTools,
 		ExcludeTools: excludeTools,
-
-		logger: logger,
 
 		Model:        model,
 		Instructions: instructions,
@@ -66,16 +70,37 @@ func NewAgent(ctx context.Context, name, model, instructions string, servers, in
 	}
 }
 
-func (a *Agent) AttachLLM(llm providers.LLM) {
+func (a BaseAgent) GetName() string {
+	return a.Name
+}
+
+func (a BaseAgent) GetModel() string {
+	return a.Model
+}
+
+func (a BaseAgent) GetInstructions() string {
+	return a.Instructions
+}
+
+func (a BaseAgent) GetRequestParams() providers.RequestParams {
+	return a.RequestParams
+}
+
+func (a *BaseAgent) AttachLLM(llm providers.LLM) {
 	a.LLM = llm
 }
 
-func (a *Agent) Initialize() error {
+func (a *BaseAgent) Initialize() error {
+
+	a.logger = slog.Default().With(
+		slog.String("agent", a.Name),
+		slog.String("model", a.Model),
+	)
 
 	err := a.LLM.Initialize()
 
 	if err != nil {
-		return fmt.Errorf("error intilize llm in agent %s, %w", a.Name, err)
+		return fmt.Errorf("error initialize llm %s in agent %s, %w", a.Model, a.Name, err)
 	}
 
 	// Init clients and create missing configurations
@@ -84,13 +109,13 @@ func (a *Agent) Initialize() error {
 	return nil
 }
 
-func (a *Agent) AttachMCPServers(servers map[string]*mcp.MCPServer) {
+func (a *BaseAgent) AttachMCPServers(servers map[string]*mcp.MCPServer) {
 	for name, server := range servers {
 		a.MCPServers[name] = server
 	}
 }
 
-func (a Agent) Generate(message string) (string, error) {
+func (a BaseAgent) Generate(message string) (string, error) {
 	_, err := a.LLM.Generate(message)
 
 	if err != nil {
@@ -100,7 +125,7 @@ func (a Agent) Generate(message string) (string, error) {
 	return "", nil
 }
 
-func (a Agent) Structured(message string, responseStruct any) (any, error) {
+func (a BaseAgent) Structured(message string, responseStruct any) (any, error) {
 
 	reflector := jsonschema.Reflector{
 		AllowAdditionalProperties: false,

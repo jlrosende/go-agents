@@ -88,9 +88,9 @@ func (server *MCPServer) ListTools() ([]mcp.Tool, error) {
 func (server *MCPServer) CallTool(name string, args any) (*mcp.CallToolResult, error) {
 	result, err := server.client.CallTool(server.ctx, mcp.CallToolRequest{
 		Params: struct {
-			Name      string    "json:\"name\""
-			Arguments any       "json:\"arguments,omitempty\""
-			Meta      *mcp.Meta "json:\"_meta,omitempty\""
+			Name      string    `json:"name"`
+			Arguments any       `json:"arguments,omitempty"`
+			Meta      *mcp.Meta `json:"_meta,omitempty"`
 		}{
 			Name:      name,
 			Arguments: args,

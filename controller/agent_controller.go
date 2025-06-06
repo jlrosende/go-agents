@@ -16,7 +16,7 @@ import (
 type AgentsController struct {
 	ctx        context.Context
 	Config     *config.AgentsConfig
-	Agents     map[string]*agents.Agent
+	Agents     map[string]agents.Agent
 	MCPServers map[string]*mcp.MCPServer
 }
 
@@ -52,10 +52,10 @@ func NewAgentsController() (*AgentsController, error) {
 	slog.SetDefault(logger)
 
 	// Load Agents only remote, more added with functions
-	agentsMap := map[string]*agents.Agent{}
+	agentsMap := map[string]agents.Agent{}
 
 	for name, agent := range conf.Agents {
-		agentsMap[name] = agents.NewAgent(
+		agentsMap[name] = agents.NewBaseAgent(
 			ctx,
 			name,
 			agent.Model,
@@ -109,11 +109,11 @@ func (controller *AgentsController) GetMCPServer(name string) (*mcp.MCPServer, e
 	return server, nil
 }
 
-func (controller *AgentsController) AddAgent(agent *agents.Agent) {
-	controller.Agents[agent.Name] = agent
+func (controller *AgentsController) AddAgent(agent agents.Agent) {
+	controller.Agents[agent.GetName()] = agent
 }
 
-func (controller *AgentsController) GetAgent(name string) (*agents.Agent, error) {
+func (controller *AgentsController) GetAgent(name string) (agents.Agent, error) {
 
 	agent, ok := controller.Agents[name]
 	if !ok {
@@ -140,7 +140,7 @@ func (controller *AgentsController) Run() error {
 	// Start all Agents
 	for _, agent := range controller.Agents {
 		agent.AttachMCPServers(controller.MCPServers)
-		llm, err := llm.NewLLM(controller.ctx, agent.Model, agent.Instructions, agent.RequestParams, controller.Config)
+		llm, err := llm.NewLLM(controller.ctx, agent.GetModel(), agent.GetInstructions(), agent.GetRequestParams(), controller.Config)
 		if err != nil {
 			return err
 		}

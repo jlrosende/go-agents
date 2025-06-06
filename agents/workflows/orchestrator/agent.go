@@ -1,7 +1,16 @@
 package orchestrator
 
-import "github.com/jlrosende/go-agents/agents"
+import (
+	_ "embed"
 
-type Orchestrator struct {
-	agents.Agent
+	"github.com/jlrosende/go-agents/agents"
+)
+
+//go:embed prompt.md
+var orchestratorPrompt string
+
+type OrchestratorAgent struct {
+	agents.BaseAgent
 }
+
+var _ agents.Agent = (*OrchestratorAgent)(nil)

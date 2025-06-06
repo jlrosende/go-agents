@@ -44,7 +44,7 @@ func NewLLM(ctx context.Context, model, instructions string, req providers.Reque
 	case LLM_PROVIDER_ANTHROPIC:
 		return anthropic.NewAnthropicLLM(ctx, config)
 	case LLM_PROVIDER_AZURE:
-		return azure.NewAzureLLM(ctx, name, effort, config)
+		return azure.NewAzureLLM(ctx, name, effort, instructions, req, config)
 	case LLM_PROVIDER_DEEPSEEK:
 		return deepseek.NewDeepSeekLLM(ctx, config)
 	case LLM_PROVIDER_GENERIC:
@@ -58,5 +58,5 @@ func NewLLM(ctx context.Context, model, instructions string, req providers.Reque
 	case LLM_PROVIDER_TENSORZERO:
 		return tensrozero.NewTensorZeroLLM(ctx, config)
 	}
-	return nil, fmt.Errorf("provider not suported")
+	return nil, fmt.Errorf("provider not suported %s", model)
 }

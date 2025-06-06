@@ -2,8 +2,10 @@ package chain
 
 import "github.com/jlrosende/go-agents/agents"
 
-type Chain struct {
-	agents.Agent
+type ChainAgent struct {
+	agents.BaseAgent
 
-	agents map[string]*agents.Agent
+	agents map[string]agents.Agent
 }
+
+var _ agents.Agent = (*ChainAgent)(nil)

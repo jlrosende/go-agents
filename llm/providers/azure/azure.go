@@ -18,7 +18,7 @@ type AzureLLM struct {
 
 var _ providers.LLM = (*AzureLLM)(nil)
 
-func NewAzureLLM(ctx context.Context, modelName, effort string, config *config.AgentsConfig) (*AzureLLM, error) {
+func NewAzureLLM(ctx context.Context, modelName, effort, instructions string, req providers.RequestParams, config *config.AgentsConfig) (*AzureLLM, error) {
 
 	cli := openai.NewClient(
 		azure.WithEndpoint(config.Azure.BaseUrl, config.Azure.ApiVersion),
@@ -27,15 +27,20 @@ func NewAzureLLM(ctx context.Context, modelName, effort string, config *config.A
 
 	return &AzureLLM{
 		OpenAILLM: llm.OpenAILLM{
-			Ctx:       ctx,
-			Client:    cli,
-			ModelName: modelName,
-			Effort:    effort,
+			Ctx:           ctx,
+			Client:        cli,
+			ModelName:     modelName,
+			Effort:        effort,
+			Instructions:  instructions,
+			RequestParams: req,
 		},
 	}, nil
 }
 
 func (llm *AzureLLM) Initialize() error {
+
+	llm.OpenAILLM.Initialize()
+
 	model, err := llm.GetModel(llm.ModelName)
 
 	if err != nil {
@@ -44,15 +49,12 @@ func (llm *AzureLLM) Initialize() error {
 
 	llm.Model = model.(*openai.Model)
 
-	slog.Debug(fmt.Sprintf("%s", model.(*openai.Model).RawJSON()))
+	// slog.Debug(fmt.Sprintf("%s", model.(*openai.Model).RawJSON()))
 
-	logger := slog.Default()
-	logger = logger.With(
-		slog.String("provider", "openai"),
+	llm.OpenAILLM.Logger = slog.Default().With(
+		slog.String("provider", "azure"),
 		slog.String("model", llm.ModelName),
 	)
-
-	llm.Logger = logger
 
 	return nil
 }
