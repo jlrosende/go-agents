@@ -9,14 +9,17 @@ import (
 	"github.com/jlrosende/go-agents/llm/providers"
 	"github.com/jlrosende/go-agents/mcp"
 	"github.com/jlrosende/go-agents/memory"
+
+	mcp_tool "github.com/mark3labs/mcp-go/mcp"
 )
 
 type Agent interface {
 	Initialize() error
 	AttachLLM(llm providers.LLM)
 	AttachMCPServers(servers map[string]*mcp.MCPServer)
-	Generate(message string) (string, error)
-	Structured(message string, responseStruct any) (any, error)
+	Send(message string) (string, error)
+	Generate(message string) ([]mcp_tool.Content, error)
+	Structured(message string, responseStruct any) ([]mcp_tool.Content, error)
 	GetName() string
 	GetModel() string
 	GetInstructions() string
@@ -115,17 +118,30 @@ func (a *BaseAgent) AttachMCPServers(servers map[string]*mcp.MCPServer) {
 	}
 }
 
-func (a BaseAgent) Generate(message string) (string, error) {
-	_, err := a.LLM.Generate(message)
-
+func (a *BaseAgent) Send(message string) (string, error) {
+	response, err := a.Generate(message)
 	if err != nil {
 		return "", err
 	}
 
-	return "", nil
+	// Join response text
+
+	result := mcp.Result(response)
+
+	return result.AllText(), nil
 }
 
-func (a BaseAgent) Structured(message string, responseStruct any) (any, error) {
+func (a BaseAgent) Generate(message string) ([]mcp_tool.Content, error) {
+	response, err := a.LLM.Generate(message)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return response, nil
+}
+
+func (a BaseAgent) Structured(message string, responseStruct any) ([]mcp_tool.Content, error) {
 
 	reflector := jsonschema.Reflector{
 		AllowAdditionalProperties: false,
@@ -135,13 +151,13 @@ func (a BaseAgent) Structured(message string, responseStruct any) (any, error) {
 	schema := reflector.Reflect(responseStruct)
 	// return schema
 
-	a.logger.Debug(fmt.Sprintf("AGENT SCHEMA: %+v", schema))
-
-	_, err := a.LLM.Structured(message, schema)
+	response, err := a.LLM.Structured(message, schema)
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return "", nil
+	fmt.Printf("LLM Structured Response: %+v\n", response)
+
+	return response, nil
 }

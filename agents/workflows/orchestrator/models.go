@@ -6,11 +6,11 @@ type Plan struct {
 }
 
 type Step struct {
-	Description string `json:"description" jsonschema_description:"Description of the step"`
+	Description string `json:"description" jsonschema_description:"Description of the step. Plain text no markdown, no quotes"`
 	Tasks       []Task `json:"tasks" jsonschema_description:"Subtasks that can be executed in parallel"`
 }
 
 type Task struct {
-	Description string `json:"description" jsonschema_description:"Subtasks that can be executed in parallel"`
+	Description string `json:"description" jsonschema_description:"Subtasks that can be executed in parallel. Plain text no markdown, no quotes"`
 	Agent       string `json:"agent" jsonschema_description:"Name of Agent from given list of agents that the LLM has access to for this task"`
 }

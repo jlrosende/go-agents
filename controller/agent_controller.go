@@ -69,8 +69,8 @@ func NewAgentsController() (*AgentsController, error) {
 				MaxIterations:     agent.RequestParams.MaxIterations,
 				MaxTokens:         agent.RequestParams.MaxTokens,
 				Temperature:       agent.RequestParams.Temperature,
-				Reasoning:         true,
-				ReasoningEffort:   providers.REASONING_EFFORT_HIGH,
+				Reasoning:         agent.RequestParams.Reasoning,
+				ReasoningEffort:   agent.RequestParams.ReasoningEffort,
 			},
 		)
 	}
@@ -137,8 +137,10 @@ func (controller *AgentsController) Run() error {
 
 	slog.Debug("mcp servers loaded")
 
+	// TODO Agent how need other agents need initiliza in other order or have a reference of the agent inside
 	// Start all Agents
 	for _, agent := range controller.Agents {
+		// Check agent type and init the specific need of each one
 		agent.AttachMCPServers(controller.MCPServers)
 		llm, err := llm.NewLLM(controller.ctx, agent.GetModel(), agent.GetInstructions(), agent.GetRequestParams(), controller.Config)
 		if err != nil {

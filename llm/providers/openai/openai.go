@@ -51,6 +51,7 @@ func NewOpenAILLM(ctx context.Context, modelName, effort, instructions string, r
 	cli := openai.NewClient(
 		option.WithAPIKey(config.OpenAI.ApiKey),
 		option.WithBaseURL(config.OpenAI.BaseUrl),
+		// TODO option.WithMiddleware()
 	)
 
 	return &OpenAILLM{
@@ -162,7 +163,7 @@ func (llm OpenAILLM) ListModels() (any, error) {
 	return models, nil
 }
 
-func (llm OpenAILLM) Generate(message string) ([]any, error) {
+func (llm OpenAILLM) Generate(message string) ([]mcp_tool.Content, error) {
 
 	messages := []openai.ChatCompletionMessageParamUnion{}
 
@@ -199,10 +200,16 @@ func (llm OpenAILLM) Generate(message string) ([]any, error) {
 
 	if llm.RequestParams.Reasoning {
 		query.MaxCompletionTokens = param.NewOpt(llm.RequestParams.MaxTokens)
-		query.ReasoningEffort = shared.ReasoningEffort(llm.RequestParams.ReasoningEffort)
+		if llm.Effort != "" {
+			query.ReasoningEffort = shared.ReasoningEffort(llm.Effort)
+		} else {
+			query.ReasoningEffort = shared.ReasoningEffort(llm.RequestParams.ReasoningEffort)
+		}
 	} else {
 		query.MaxTokens = param.NewOpt(llm.RequestParams.MaxTokens)
 	}
+
+	response := []mcp_tool.Content{}
 
 stop_iter:
 	for _ = range llm.RequestParams.MaxIterations {
@@ -222,6 +229,8 @@ stop_iter:
 		llm.Logger.Info(fmt.Sprintf("%s", completion.Choices[0].Message.Content))
 
 		query.Messages = append(query.Messages, completion.Choices[0].Message.ToParam())
+
+		response = append(response, mcp_tool.NewTextContent(completion.Choices[0].Message.Content))
 
 		for _, toolCall := range completion.Choices[0].Message.ToolCalls {
 
@@ -243,30 +252,20 @@ stop_iter:
 					return nil, fmt.Errorf("error call tool %s, %w", toolCall.Function.Name, err)
 				}
 
-				content := ""
 				for _, c := range toolRes.Content {
-					if textContent, ok := c.(mcp_tool.TextContent); ok {
-						content += textContent.Text
-					} else {
-						jsonBytes, _ := json.MarshalIndent(c, "", "  ")
-						content += string(jsonBytes)
+
+					jsonBytes, _ := json.Marshal(c)
+					content := string(jsonBytes)
+
+					if llm.RequestParams.UseHistory {
+						llm.Memory.Append(openai.ToolMessage(content, toolCall.ID))
 					}
 
-					switch resource := c.(type) {
-					case mcp_tool.TextContent:
-						content += resource.Text
-					case mcp_tool.AudioContent:
-						content += resource.Data
-					case mcp_tool.ImageContent:
-						content += resource.Data
-					}
+					query.Messages = append(query.Messages, openai.ToolMessage(content, toolCall.ID))
+
+					response = append(response, c)
 				}
 
-				if llm.RequestParams.UseHistory {
-					llm.Memory.Append(openai.ToolMessage(content, toolCall.ID))
-				}
-
-				query.Messages = append(query.Messages, openai.ToolMessage(content, toolCall.ID))
 			}
 		}
 
@@ -277,10 +276,10 @@ stop_iter:
 
 	}
 
-	return nil, nil
+	return response, nil
 }
 
-func (llm OpenAILLM) Structured(message string, reponseStruct any) (any, error) {
+func (llm OpenAILLM) Structured(message string, reponseStruct any) ([]mcp_tool.Content, error) {
 
 	schemaParam := openai.ResponseFormatJSONSchemaJSONSchemaParam{
 		Name:        "structured_response",
@@ -288,8 +287,6 @@ func (llm OpenAILLM) Structured(message string, reponseStruct any) (any, error) 
 		Schema:      reponseStruct,
 		Strict:      openai.Bool(true),
 	}
-
-	llm.Logger.Debug(fmt.Sprintf("LLM SCHEMA %+v", schemaParam))
 
 	messages := []openai.ChatCompletionMessageParamUnion{}
 
@@ -331,10 +328,16 @@ func (llm OpenAILLM) Structured(message string, reponseStruct any) (any, error) 
 
 	if llm.RequestParams.Reasoning {
 		query.MaxCompletionTokens = param.NewOpt(llm.RequestParams.MaxTokens)
-		query.ReasoningEffort = shared.ReasoningEffort(llm.RequestParams.ReasoningEffort)
+		if llm.Effort != "" {
+			query.ReasoningEffort = shared.ReasoningEffort(llm.Effort)
+		} else {
+			query.ReasoningEffort = shared.ReasoningEffort(llm.RequestParams.ReasoningEffort)
+		}
 	} else {
 		query.MaxTokens = param.NewOpt(llm.RequestParams.MaxTokens)
 	}
+
+	response := []mcp_tool.Content{}
 
 stop_iter_structured:
 	for _ = range llm.RequestParams.MaxIterations {
@@ -354,6 +357,8 @@ stop_iter_structured:
 		llm.Logger.Info(fmt.Sprintf("%s", completion.Choices[0].Message.Content))
 
 		query.Messages = append(query.Messages, completion.Choices[0].Message.ToParam())
+
+		response = append(response, mcp_tool.NewTextContent(completion.Choices[0].Message.Content))
 
 		for _, toolCall := range completion.Choices[0].Message.ToolCalls {
 
@@ -375,30 +380,19 @@ stop_iter_structured:
 					return nil, fmt.Errorf("error call tool %s, %w", toolCall.Function.Name, err)
 				}
 
-				content := ""
 				for _, c := range toolRes.Content {
-					if textContent, ok := c.(mcp_tool.TextContent); ok {
-						content += textContent.Text
-					} else {
-						jsonBytes, _ := json.MarshalIndent(c, "", "  ")
-						content += string(jsonBytes)
+
+					jsonBytes, _ := json.Marshal(c)
+					content := string(jsonBytes)
+
+					if llm.RequestParams.UseHistory {
+						llm.Memory.Append(openai.ToolMessage(content, toolCall.ID))
 					}
 
-					switch resource := c.(type) {
-					case mcp_tool.TextContent:
-						content += resource.Text
-					case mcp_tool.AudioContent:
-						content += resource.Data
-					case mcp_tool.ImageContent:
-						content += resource.Data
-					}
-				}
+					query.Messages = append(query.Messages, openai.ToolMessage(content, toolCall.ID))
 
-				if llm.RequestParams.UseHistory {
-					llm.Memory.Append(openai.ToolMessage(content, toolCall.ID))
+					response = append(response, c)
 				}
-
-				query.Messages = append(query.Messages, openai.ToolMessage(content, toolCall.ID))
 			}
 		}
 

@@ -1,8 +1,10 @@
 package mcp
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/mark3labs/mcp-go/client"
 	mcp_transport "github.com/mark3labs/mcp-go/client/transport"
@@ -102,4 +104,74 @@ func (server *MCPServer) CallTool(name string, args any) (*mcp.CallToolResult, e
 	}
 
 	return result, nil
+}
+
+type Result []mcp.Content
+
+func (r Result) AllText() string {
+	var buffer bytes.Buffer
+	for _, content := range r {
+		if ok, text := GetText(content); ok {
+			buffer.WriteString(text + "\n")
+		}
+	}
+	return buffer.String()
+}
+
+func (r Result) FirstText() string {
+	for _, content := range r {
+		if ok, text := GetText(content); ok {
+			return text
+		}
+	}
+	return ""
+}
+
+func (r Result) LastText() string {
+	for _, content := range slices.Backward(r) {
+		if ok, text := GetText(content); ok {
+			return text
+		}
+	}
+	return ""
+}
+
+func GetText(content mcp.Content) (bool, string) {
+	switch c := content.(type) {
+	case mcp.TextContent:
+		return true, c.Text
+	case mcp.EmbeddedResource:
+		switch embed := c.Resource.(type) {
+		case mcp.TextResourceContents:
+			return true, embed.Text
+		}
+	}
+	return false, ""
+}
+
+func GetUri(content mcp.Content) (bool, string) {
+	switch c := content.(type) {
+
+	case mcp.EmbeddedResource:
+		switch embed := c.Resource.(type) {
+		case mcp.TextResourceContents:
+			return true, embed.URI
+		case mcp.BlobResourceContents:
+			return true, embed.URI
+		}
+	}
+	return false, ""
+}
+
+func GetImageData(content mcp.Content) (bool, string) {
+	switch c := content.(type) {
+	case mcp.ImageContent:
+		return true, c.Data
+	case mcp.EmbeddedResource:
+		switch embed := c.Resource.(type) {
+		case mcp.BlobResourceContents:
+			return true, embed.Blob
+		}
+	}
+	return false, ""
 }

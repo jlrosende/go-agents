@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/jlrosende/go-agents/agents/workflows/orchestrator"
 	"github.com/jlrosende/go-agents/controller"
 )
 
@@ -29,22 +28,23 @@ func main() {
 		os.Exit(1)
 	}
 
-	// response, err := agent.Generate("Plese read and analize the README.md file, then give me a better readme template")
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	os.Exit(1)
-	// }
-	// fmt.Fprintln(os.Stderr, response)]
-
-	response, err := agent.Structured(`
-	Plese read and analize the README.md file, then give me a better readme template
-	Available agents: pumba`,
-		orchestrator.Plan{})
+	response, err := agent.Send("Plese create a new file named CONTRIBUTING.md, and add information about a contributing options of an open source repository.")
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+	fmt.Fprintln(os.Stderr, "-------------------------------------------------------------")
 	fmt.Fprintln(os.Stderr, response)
+
+	// response, err := agent.Structured(`
+	// Plese read and analize the README.md file, then give me a better readme template
+	// Available agents: pumba`,
+	// 	orchestrator.Plan{})
+	// if err != nil {
+	// 	fmt.Println(err)
+	// 	os.Exit(1)
+	// }
+	// fmt.Fprintln(os.Stderr, response)
 
 	// ctx := context.Background()
 

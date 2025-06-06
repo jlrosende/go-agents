@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/jlrosende/go-agents/llm/providers"
 	"github.com/jlrosende/go-agents/mcp"
 	"github.com/spf13/viper"
 )
@@ -49,11 +50,13 @@ type Agent struct {
 }
 
 type RequestParams struct {
-	UseHistory        bool    `mapstructure:"use_history"`
-	ParallelToolCalls bool    `mapstructure:"parallel_tool_calls"`
-	MaxIterations     int     `mapstructure:"max_iterations"`
-	MaxTokens         int64   `mapstructure:"max_tokens"`
-	Temperature       float64 `mapstructure:"temperature"`
+	UseHistory        bool                      `mapstructure:"use_history"`
+	ParallelToolCalls bool                      `mapstructure:"parallel_tool_calls"`
+	MaxIterations     int                       `mapstructure:"max_iterations"`
+	MaxTokens         int64                     `mapstructure:"max_tokens"`
+	Temperature       float64                   `mapstructure:"temperature"`
+	Reasoning         bool                      `mapstructure:"reasoning"`
+	ReasoningEffort   providers.ReasoningEffort `mapstructure:"reasoning_effort"`
 }
 
 type Anthropic struct {

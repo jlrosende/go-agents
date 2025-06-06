@@ -1,7 +1,7 @@
-model: &model azure.o3-mini
+# model: &model azure.o3-mini
 # model: &model generic.qwen3
-# model: &model openai.o3-mini
-# model: &model openai.o4-mini
+model: &model openai.o3-mini.high
+# model: &model openai.o4-mini.high
 
 agents:
   agent_one:
@@ -15,6 +15,8 @@ agents:
       # - fetch
     include_tools:
       - read_file
+      - write_file
+      - edit_file
       # - fetch
     request_params:
       use_history: true
@@ -22,6 +24,7 @@ agents:
       max_tokens: 8196
       parallel_tool_calls: false
       temperature: 0
+      reasoning: true
 
 mcp:
   servers:
