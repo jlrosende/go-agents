@@ -165,6 +165,8 @@ func (llm OpenAILLM) ListModels() (any, error) {
 
 func (llm OpenAILLM) Generate(message string) ([]mcp_tool.Content, error) {
 
+	llm.Logger.Debug("LLM Generate", "msg", message)
+
 	messages := []openai.ChatCompletionMessageParamUnion{}
 
 	messages = append(messages, openai.SystemMessage(llm.Instructions))
@@ -275,6 +277,8 @@ stop_iter:
 		}
 
 	}
+
+	llm.Logger.Debug(fmt.Sprintf("LLM Generate: %+v", response))
 
 	return response, nil
 }

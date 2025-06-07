@@ -8,7 +8,6 @@ import (
 	"github.com/invopop/jsonschema"
 	"github.com/jlrosende/go-agents/llm/providers"
 	"github.com/jlrosende/go-agents/mcp"
-	"github.com/jlrosende/go-agents/memory"
 
 	mcp_tool "github.com/mark3labs/mcp-go/mcp"
 )
@@ -25,6 +24,7 @@ type Agent interface {
 	GetInstructions() string
 	GetRequestParams() providers.RequestParams
 }
+
 type BaseAgent struct {
 	ctx context.Context
 
@@ -34,18 +34,14 @@ type BaseAgent struct {
 	Servers      []string
 	IncludeTools []string
 	ExcludeTools []string
-	MCPServers   map[string]*mcp.MCPServer
-
-	// Fast access to the tool name and their servers
-	ToolsServers map[string]*mcp.MCPServer
+	mcpServers   map[string]*mcp.MCPServer
 
 	logger *slog.Logger
 
 	// LLM
 	Model        string
 	Instructions string
-	LLM          providers.LLM
-	Memory       *memory.Memory
+	llm          providers.LLM
 
 	RequestParams providers.RequestParams
 }
@@ -66,8 +62,7 @@ func NewBaseAgent(ctx context.Context, name, model, instructions string, servers
 
 		Model:        model,
 		Instructions: instructions,
-		Memory:       new(memory.Memory),
-		MCPServers:   map[string]*mcp.MCPServer{},
+		mcpServers:   map[string]*mcp.MCPServer{},
 
 		RequestParams: reqParams,
 	}
@@ -90,7 +85,7 @@ func (a BaseAgent) GetRequestParams() providers.RequestParams {
 }
 
 func (a *BaseAgent) AttachLLM(llm providers.LLM) {
-	a.LLM = llm
+	a.llm = llm
 }
 
 func (a *BaseAgent) Initialize() error {
@@ -100,29 +95,38 @@ func (a *BaseAgent) Initialize() error {
 		slog.String("model", a.Model),
 	)
 
-	err := a.LLM.Initialize()
+	err := a.llm.Initialize()
 
 	if err != nil {
 		return fmt.Errorf("error initialize llm %s in agent %s, %w", a.Model, a.Name, err)
 	}
 
 	// Init clients and create missing configurations
-	a.LLM.AttachTools(a.MCPServers, a.IncludeTools, a.ExcludeTools)
+	a.llm.AttachTools(a.mcpServers, a.IncludeTools, a.ExcludeTools)
 
 	return nil
 }
 
 func (a *BaseAgent) AttachMCPServers(servers map[string]*mcp.MCPServer) {
+
+	if a.mcpServers == nil {
+		a.mcpServers = map[string]*mcp.MCPServer{}
+	}
+
 	for name, server := range servers {
-		a.MCPServers[name] = server
+		a.mcpServers[name] = server
 	}
 }
 
 func (a *BaseAgent) Send(message string) (string, error) {
+	a.logger.Debug("Send", "msg", message)
+
 	response, err := a.Generate(message)
 	if err != nil {
 		return "", err
 	}
+
+	a.logger.Debug(fmt.Sprintf("Send: %+v", response))
 
 	// Join response text
 
@@ -132,11 +136,14 @@ func (a *BaseAgent) Send(message string) (string, error) {
 }
 
 func (a BaseAgent) Generate(message string) ([]mcp_tool.Content, error) {
-	response, err := a.LLM.Generate(message)
+	a.logger.Debug("Generate", "msg", message)
+	response, err := a.llm.Generate(message)
 
 	if err != nil {
 		return nil, err
 	}
+
+	a.logger.Debug(fmt.Sprintf("Generate: %+v", response))
 
 	return response, nil
 }
@@ -151,7 +158,7 @@ func (a BaseAgent) Structured(message string, responseStruct any) ([]mcp_tool.Co
 	schema := reflector.Reflect(responseStruct)
 	// return schema
 
-	response, err := a.LLM.Structured(message, schema)
+	response, err := a.llm.Structured(message, schema)
 
 	if err != nil {
 		return nil, err

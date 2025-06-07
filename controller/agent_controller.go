@@ -123,9 +123,11 @@ func (controller *AgentsController) GetAgent(name string) (agents.Agent, error) 
 	return agent, nil
 }
 
-func (controller *AgentsController) Run() error {
+func (controller *AgentsController) Run(defautlAgent string) error {
 
-	slog.Debug("start controller")
+	slog.Info("start controller")
+
+	slog.Info("load mcp servers")
 
 	// Start all mcp servers
 	for name, server := range controller.MCPServers {
@@ -135,8 +137,7 @@ func (controller *AgentsController) Run() error {
 		}
 	}
 
-	slog.Debug("mcp servers loaded")
-
+	slog.Info("load agents")
 	// TODO Agent how need other agents need initiliza in other order or have a reference of the agent inside
 	// Start all Agents
 	for _, agent := range controller.Agents {
@@ -154,7 +155,7 @@ func (controller *AgentsController) Run() error {
 		}
 	}
 
-	slog.Debug("agents loaded")
+	slog.Info("start loop")
 
 	// Start default agent and send a message
 

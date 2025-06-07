@@ -3,6 +3,7 @@ package llm
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/jlrosende/go-agents/config"
@@ -52,6 +53,7 @@ func NewLLM(ctx context.Context, model, instructions string, req providers.Reque
 	case LLM_PROVIDER_GOOGLE:
 		return google.NewGoogleLLM(ctx, config)
 	case LLM_PROVIDER_OPENAI:
+		slog.Debug("init openai", "name", name)
 		return openai.NewOpenAILLM(ctx, name, effort, instructions, req, config)
 	case LLM_PROVIDER_OPENROUTER:
 		return tensrozero.NewTensorZeroLLM(ctx, config)

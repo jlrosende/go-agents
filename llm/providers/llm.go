@@ -14,6 +14,7 @@ const (
 	REASONING_EFFORT_LOW    ReasoningEffort = "low"
 )
 
+// TODO Add consturctor with options pattern
 type RequestParams struct {
 	UseHistory        bool
 	ParallelToolCalls bool
