@@ -18,7 +18,7 @@ type AzureLLM struct {
 
 var _ providers.LLM = (*AzureLLM)(nil)
 
-func NewAzureLLM(ctx context.Context, modelName, effort, instructions string, req providers.RequestParams, config *config.AgentsConfig) (*AzureLLM, error) {
+func NewAzureLLM(ctx context.Context, modelName, effort, instructions string, req *providers.RequestParams, config *config.AgentsConfig) (*AzureLLM, error) {
 
 	cli := openai.NewClient(
 		azure.WithEndpoint(config.Azure.BaseUrl, config.Azure.ApiVersion),

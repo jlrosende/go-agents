@@ -18,14 +18,11 @@ func main() {
 	}
 
 	swarm.AddAgent(&agents.BaseAgent{
-		Name:         "hola",
-		Servers:      []string{"filesystem"},
-		Model:        "openai.o4-mini.high",
-		Instructions: "Yo are a AI assystant",
-		RequestParams: providers.RequestParams{
-			UseHistory:    true,
-			MaxIterations: 20,
-		},
+		Name:          "hola",
+		Servers:       []string{"filesystem"},
+		Model:         "openai.o4-mini.high",
+		Instructions:  "Yo are a AI assystant",
+		RequestParams: providers.NewRequestParams(),
 	})
 
 	err = swarm.Run("hola")
@@ -35,7 +32,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	agent, err := swarm.GetAgent("hola")
+	agent, err := swarm.GetAgent("agent_one")
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

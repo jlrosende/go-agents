@@ -22,7 +22,7 @@ type Agent interface {
 	GetName() string
 	GetModel() string
 	GetInstructions() string
-	GetRequestParams() providers.RequestParams
+	GetRequestParams() *providers.RequestParams
 }
 
 type BaseAgent struct {
@@ -43,12 +43,12 @@ type BaseAgent struct {
 	Instructions string
 	llm          providers.LLM
 
-	RequestParams providers.RequestParams
+	RequestParams *providers.RequestParams
 }
 
 var _ Agent = (*BaseAgent)(nil)
 
-func NewBaseAgent(ctx context.Context, name, model, instructions string, servers, includeTools, excludeTools []string, reqParams providers.RequestParams) Agent {
+func NewBaseAgent(ctx context.Context, name, model, instructions string, servers, includeTools, excludeTools []string, reqParams *providers.RequestParams) Agent {
 
 	// Init LLM factory with model and tools
 	return &BaseAgent{
@@ -80,7 +80,7 @@ func (a BaseAgent) GetInstructions() string {
 	return a.Instructions
 }
 
-func (a BaseAgent) GetRequestParams() providers.RequestParams {
+func (a BaseAgent) GetRequestParams() *providers.RequestParams {
 	return a.RequestParams
 }
 

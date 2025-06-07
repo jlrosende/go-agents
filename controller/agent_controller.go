@@ -63,15 +63,15 @@ func NewAgentsController() (*AgentsController, error) {
 			agent.Servers,
 			agent.IncludeTools,
 			agent.ExcludeTools,
-			providers.RequestParams{
-				UseHistory:        agent.RequestParams.UseHistory,
-				ParallelToolCalls: agent.RequestParams.ParallelToolCalls,
-				MaxIterations:     agent.RequestParams.MaxIterations,
-				MaxTokens:         agent.RequestParams.MaxTokens,
-				Temperature:       agent.RequestParams.Temperature,
-				Reasoning:         agent.RequestParams.Reasoning,
-				ReasoningEffort:   agent.RequestParams.ReasoningEffort,
-			},
+			providers.NewRequestParams(
+				providers.WithUseHistory(agent.RequestParams.UseHistory),
+				providers.WithParallelToolCalls(agent.RequestParams.ParallelToolCalls),
+				providers.WithMaxIterations(agent.RequestParams.MaxIterations),
+				providers.WithMaxTokens(agent.RequestParams.MaxTokens),
+				providers.WithTemperature(agent.RequestParams.Temperature),
+				providers.WithReasoning(agent.RequestParams.Reasoning),
+				providers.WithReasoningEffort(agent.RequestParams.ReasoningEffort),
+			),
 		)
 	}
 

@@ -36,7 +36,7 @@ func unpackModel(model string, vars ...*string) {
 	}
 }
 
-func NewLLM(ctx context.Context, model, instructions string, req providers.RequestParams, config *config.AgentsConfig) (providers.LLM, error) {
+func NewLLM(ctx context.Context, model, instructions string, req *providers.RequestParams, config *config.AgentsConfig) (providers.LLM, error) {
 	var provider, name, effort string
 
 	unpackModel(model, &provider, &name, &effort)

@@ -41,12 +41,12 @@ type OpenAILLM struct {
 
 	ToolsServers map[string]*mcp.MCPServer
 
-	RequestParams providers.RequestParams
+	RequestParams *providers.RequestParams
 }
 
 var _ providers.LLM = (*OpenAILLM)(nil)
 
-func NewOpenAILLM(ctx context.Context, modelName, effort, instructions string, req providers.RequestParams, config *config.AgentsConfig) (*OpenAILLM, error) {
+func NewOpenAILLM(ctx context.Context, modelName, effort, instructions string, req *providers.RequestParams, config *config.AgentsConfig) (*OpenAILLM, error) {
 
 	cli := openai.NewClient(
 		option.WithAPIKey(config.OpenAI.ApiKey),
