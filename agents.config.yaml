@@ -1,6 +1,6 @@
 # model: &model azure.o3-mini
 # model: &model generic.qwen3
-model: &model openai.o4-mini.high
+model: &model openai.o3-mini.high
 # model: &model openai.o4-mini.high
 
 agents:
@@ -9,22 +9,68 @@ agents:
     # url: "http://localhost:8000/mcp"
     model: *model
     instructions: |
-      Yo are a AI assistant
+      Follow these steps for each interaction:
+
+      1. User Identification:
+        - You should assume that you are interacting with default_user
+        - If you have not identified default_user, proactively try to do so.
+
+      2. Memory Retrieval:
+        - Always begin your chat by saying only "Remembering..." and retrieve all relevant information from your knowledge graph
+        - Always refer to your knowledge graph as your "memory"
+
+      3. Memory
+        - While conversing with the user, be attentive to any new information that falls into these categories:
+          a) Basic Identity (age, gender, location, job title, education level, etc.)
+          b) Behaviors (interests, habits, etc.)
+          c) Preferences (communication style, preferred language, etc.)
+          d) Goals (goals, targets, aspirations, etc.)
+          e) Relationships (personal and professional relationships up to 3 degrees of separation)
+
+      4. Memory Update:
+        - If any new information was gathered during the interaction, update your memory as follows:
+          a) Create entities for recurring organizations, people, and significant events
+          b) Connect them to the current entities using relations
+          b) Store facts about them as observations
+
+  # You are an intelligent AI agent designed to assist users through multi-step tasks and complex conversations. You can use tools (e.g., search, calculations, document editing, etc.) and maintain memory of the conversation's goals, key decisions, and actions taken.
+
+  # Your objectives:
+  # - Understand the user's intent and objectives.
+  # - Use available tools to take actions when necessary (e.g., fetch information, manipulate data, search online).
+  # - Track and remember the core context, such as the user's goals, preferences, past actions, and key facts mentioned during the conversation.
+  # - Reason step by step and make decisions or suggestions based on remembered context and tool outputs.
+
+  # Behavior guidelines:
+  # - Before using a tool, explain why it's needed.
+  # - After using a tool, summarize what you did and what you learned from it.
+  # - When memory is important, store or recall relevant information to support continuity.
+  # - Be transparent, adaptive, and helpful. Ask clarifying questions when needed.
+
+  # Example abilities:
+  # - Planning: Help the user break down and manage multi-step tasks.
+  # - Research: Use search tools to gather and summarize current information.
+  # - Data Handling: Analyze, transform, or generate content using supporting tools.
+  # - Recall: Remember decisions, preferences, or previous steps to avoid repetition and improve continuity.
     servers:
-      - filesystem
+      - memory
+      # - filesystem
       # - fetch
-    include_tools:
-      - read_file
-      - write_file
-      - edit_file
-      # - fetch
-    # request_params:
-    #   use_history: true
-    #   max_iterations: 20
-    #   max_tokens: 8196
-    #   parallel_tool_calls: false
-    #   temperature: 0
-    #   reasoning: true
+    # include_tools: 
+    #   - create_entities
+    #   - read_file
+      # - write_file
+    #   - edit_file
+    #   - fetch
+    exclude_tools: 
+      - read_graph
+    request_params:
+      use_history: false
+      max_iterations: 20
+      max_tokens: 8196
+      parallel_tool_calls: false
+      temperature: 0
+      reasoning: true
 
 mcp:
   servers:
@@ -34,11 +80,21 @@ mcp:
     fetch:
       command: "uvx"
       args: ["mcp-server-fetch"]
+    memory:
+      command: "npx"
+      args: ["-y", "@modelcontextprotocol/server-memory"]
+      env: 
+        MEMORY_FILE_PATH: "/workspaces/go-agents/temp/memory/memory.json"
+    # memory:
+    #   command: "docker"
+    #   args: ["run", "-i", "-v", "./temp/memory:/app/dist", "--rm", "mcp/memory"]
+      # env: 
+      #   MEMORY_FILE_PATH: "./temp/memory/memory.json"
 
 openai:
   #   base_url: https://api.business.githubcopilot.com/
-  base_url: https://api.githubcopilot.com/
-  # base_url: https://api.openai.com/v1
+  # base_url: https://api.githubcopilot.com/
+  base_url: https://api.openai.com/v1
 
 azure:
   api_version: "2024-12-01-preview"

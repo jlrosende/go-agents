@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/mark3labs/mcp-go/client"
 	mcp_transport "github.com/mark3labs/mcp-go/client/transport"
@@ -51,7 +52,7 @@ func NewMCPServer(ctx context.Context, name string, transport Transport, url, co
 		envs := []string{}
 
 		for key, value := range environments {
-			envs = append(envs, fmt.Sprintf("%s=%s", key, value))
+			envs = append(envs, fmt.Sprintf("%s=%s", strings.ToUpper(key), value))
 		}
 
 		t = mcp_transport.NewStdio(command, envs, args...)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
 
 	"github.com/invopop/jsonschema"
 	"github.com/jlrosende/go-agents/llm/providers"
@@ -114,19 +115,17 @@ func (a *BaseAgent) AttachMCPServers(servers map[string]*mcp.MCPServer) {
 	}
 
 	for name, server := range servers {
-		a.mcpServers[name] = server
+		if slices.Contains(a.Servers, name) {
+			a.mcpServers[name] = server
+		}
 	}
 }
 
 func (a *BaseAgent) Send(message string) (string, error) {
-	a.logger.Debug("Send", "msg", message)
-
 	response, err := a.Generate(message)
 	if err != nil {
 		return "", err
 	}
-
-	a.logger.Debug(fmt.Sprintf("Send: %+v", response))
 
 	// Join response text
 
@@ -136,14 +135,11 @@ func (a *BaseAgent) Send(message string) (string, error) {
 }
 
 func (a BaseAgent) Generate(message string) ([]mcp_tool.Content, error) {
-	a.logger.Debug("Generate", "msg", message)
 	response, err := a.llm.Generate(message)
 
 	if err != nil {
 		return nil, err
 	}
-
-	a.logger.Debug(fmt.Sprintf("Generate: %+v", response))
 
 	return response, nil
 }
@@ -163,8 +159,6 @@ func (a BaseAgent) Structured(message string, responseStruct any) ([]mcp_tool.Co
 	if err != nil {
 		return nil, err
 	}
-
-	fmt.Printf("LLM Structured Response: %+v\n", response)
 
 	return response, nil
 }

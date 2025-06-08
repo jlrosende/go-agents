@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/jlrosende/go-agents/agents"
 	"github.com/jlrosende/go-agents/controller"
-	"github.com/jlrosende/go-agents/llm/providers"
 )
 
 func main() {
@@ -17,13 +15,13 @@ func main() {
 		panic(err)
 	}
 
-	swarm.AddAgent(&agents.BaseAgent{
-		Name:          "hola",
-		Servers:       []string{"filesystem"},
-		Model:         "openai.o4-mini.high",
-		Instructions:  "Yo are a AI assystant",
-		RequestParams: providers.NewRequestParams(),
-	})
+	// swarm.AddAgent(&agents.BaseAgent{
+	// 	Name:          "hola",
+	// 	Servers:       []string{"filesystem"},
+	// 	Model:         "openai.o4-mini.high",
+	// 	Instructions:  "Yo are a AI assystant",
+	// 	RequestParams: providers.NewRequestParams(),
+	// })
 
 	err = swarm.Run("hola")
 
@@ -38,13 +36,21 @@ func main() {
 		os.Exit(1)
 	}
 
-	response, err := agent.Send("Plese read the file go.mod and give me the available tools")
+	response, err := agent.Send("hi use your memory")
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 	fmt.Fprintln(os.Stderr, "-------------------------------------------------------------")
 	fmt.Fprintln(os.Stderr, response)
+
+	// response, err = agent.Send("My interest are programing and create new tecnologies.")
+	// if err != nil {
+	// 	fmt.Println(err)
+	// 	os.Exit(1)
+	// }
+	// fmt.Fprintln(os.Stderr, "-------------------------------------------------------------")
+	// fmt.Fprintln(os.Stderr, response)
 
 	// response, err := agent.Structured(`
 	// Plese read and analize the README.md file, then give me a better readme template
