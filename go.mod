@@ -7,7 +7,7 @@ tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint
 require (
 	github.com/invopop/jsonschema v0.13.0
 	github.com/mark3labs/mcp-go v0.30.1
-	github.com/openai/openai-go v1.1.0
+	github.com/openai/openai-go v1.4.0
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0
 )
