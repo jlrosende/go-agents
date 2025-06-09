@@ -39,14 +39,14 @@ type MCPServer struct {
 }
 
 type Agent struct {
-	Transport     mcp.Transport `mapstructure:"transport"`
-	Url           string        `mapstructure:"url"`
-	Model         string        `mapstructure:"model"`
-	Instructions  string        `mapstructure:"instructions"`
-	Servers       []string      `mapstructure:"servers"`
-	IncludeTools  []string      `mapstructure:"include_tools"`
-	ExcludeTools  []string      `mapstructure:"exclude_tools"`
-	RequestParams RequestParams `mapstructure:"request_params"`
+	Transport     mcp.Transport  `mapstructure:"transport"`
+	Url           string         `mapstructure:"url"`
+	Model         string         `mapstructure:"model"`
+	Instructions  string         `mapstructure:"instructions"`
+	Servers       []string       `mapstructure:"servers"`
+	IncludeTools  []string       `mapstructure:"include_tools"`
+	ExcludeTools  []string       `mapstructure:"exclude_tools"`
+	RequestParams *RequestParams `mapstructure:"request_params"`
 }
 
 type RequestParams struct {

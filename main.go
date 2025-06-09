@@ -36,6 +36,9 @@ func main() {
 		os.Exit(1)
 	}
 
+	fmt.Fprintln(os.Stderr, "-------------------------------------------------------------")
+	fmt.Fprintf(os.Stderr, "%+v\n", agent.GetRequestParams())
+
 	response, err := agent.Send("hi use your memory")
 	if err != nil {
 		fmt.Println(err)

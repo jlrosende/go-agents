@@ -4,6 +4,7 @@ import (
 	_ "embed"
 
 	"github.com/jlrosende/go-agents/agents"
+	"github.com/jlrosende/go-agents/agents/workflows/base"
 )
 
 //go:embed generator.prompt.md
@@ -13,7 +14,7 @@ var generatorPrompt string
 var evaluatorPrompt string
 
 type EvaluatorOptimizerAgent struct {
-	agents.BaseAgent
+	base.BaseAgent
 
 	evaluator agents.Agent
 	generator agents.Agent

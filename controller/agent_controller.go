@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/jlrosende/go-agents/agents"
+	"github.com/jlrosende/go-agents/agents/workflows/base"
 	"github.com/jlrosende/go-agents/config"
 	"github.com/jlrosende/go-agents/llm"
 	"github.com/jlrosende/go-agents/llm/providers"
@@ -55,7 +56,48 @@ func NewAgentsController() (*AgentsController, error) {
 	agentsMap := map[string]agents.Agent{}
 
 	for name, agent := range conf.Agents {
-		agentsMap[name] = agents.NewBaseAgent(
+
+		reqParams := providers.NewRequestParams()
+
+		if agent.RequestParams != nil {
+
+			// Default: false
+			if !agent.RequestParams.UseHistory {
+				reqParams.UseHistory = agent.RequestParams.UseHistory
+			}
+
+			// Default true
+			if !agent.RequestParams.ParallelToolCalls {
+				reqParams.ParallelToolCalls = agent.RequestParams.ParallelToolCalls
+			}
+
+			// 	providers.WithMaxIterations(agent.RequestParams.MaxIterations),
+			if reqParams.MaxIterations != agent.RequestParams.MaxIterations {
+				reqParams.MaxIterations = agent.RequestParams.MaxIterations
+			}
+
+			// 	providers.WithMaxTokens(agent.RequestParams.MaxTokens),
+			if reqParams.MaxTokens != agent.RequestParams.MaxTokens {
+				reqParams.MaxTokens = agent.RequestParams.MaxTokens
+			}
+
+			// 	providers.WithTemperature(agent.RequestParams.Temperature),
+			if reqParams.Temperature != agent.RequestParams.Temperature {
+				reqParams.Temperature = agent.RequestParams.Temperature
+			}
+
+			// 	providers.WithReasoning(agent.RequestParams.Reasoning),
+			if reqParams.Reasoning != agent.RequestParams.Reasoning {
+				reqParams.Reasoning = agent.RequestParams.Reasoning
+			}
+
+			// 	providers.WithReasoningEffort(agent.RequestParams.ReasoningEffort),
+			if reqParams.ReasoningEffort != agent.RequestParams.ReasoningEffort {
+				reqParams.ReasoningEffort = agent.RequestParams.ReasoningEffort
+			}
+		}
+
+		agentsMap[name] = base.NewBaseAgent(
 			ctx,
 			name,
 			agent.Model,
@@ -63,15 +105,7 @@ func NewAgentsController() (*AgentsController, error) {
 			agent.Servers,
 			agent.IncludeTools,
 			agent.ExcludeTools,
-			providers.NewRequestParams(
-				providers.WithUseHistory(agent.RequestParams.UseHistory),
-				providers.WithParallelToolCalls(agent.RequestParams.ParallelToolCalls),
-				providers.WithMaxIterations(agent.RequestParams.MaxIterations),
-				providers.WithMaxTokens(agent.RequestParams.MaxTokens),
-				providers.WithTemperature(agent.RequestParams.Temperature),
-				providers.WithReasoning(agent.RequestParams.Reasoning),
-				providers.WithReasoningEffort(agent.RequestParams.ReasoningEffort),
-			),
+			reqParams,
 		)
 	}
 
