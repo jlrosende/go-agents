@@ -1,7 +1,7 @@
-# model: &model azure.o3-mini
 # model: &model generic.qwen3
-model: &model openai.o4-mini.high
+# model: &model azure.o3-mini
 # model: &model openai.o4-mini.high
+model: &model azure.gpt-4.1.high
 
 agents:
   agent_one:
@@ -54,7 +54,7 @@ agents:
     # - Recall: Remember decisions, preferences, or previous steps to avoid repetition and improve continuity.
     servers:
       - memory
-      # - filesystem
+      - filesystem
       # - fetch
     # include_tools:
     #   - create_entities
@@ -70,7 +70,7 @@ agents:
       #   max_tokens: 8196
       parallel_tool_calls: false
     #   temperature: 0
-    #   reasoning: true
+      reasoning: false
 
 mcp:
   servers:

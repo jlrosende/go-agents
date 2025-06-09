@@ -29,9 +29,26 @@ const (
 	LLM_PROVIDER_TENSORZERO Provider = "tensorzero"
 )
 
-func unpackModel(model string, vars ...*string) {
-	for i, str := range strings.SplitN(model, ".", 3) {
-		*vars[i] = str
+func unpackModel(model string, provider, name, effort *string) {
+	args := strings.Split(model, ".")
+
+	*provider = args[0]
+
+	switch providers.ReasoningEffort(args[len(args)-1]) {
+	case providers.REASONING_EFFORT_HIGH:
+		*effort = string(providers.REASONING_EFFORT_HIGH)
+	case providers.REASONING_EFFORT_MEDIUM:
+		*effort = string(providers.REASONING_EFFORT_MEDIUM)
+	case providers.REASONING_EFFORT_LOW:
+		*effort = string(providers.REASONING_EFFORT_LOW)
+	default:
+		*effort = ""
+	}
+
+	if *effort != "" {
+		*name = strings.Join(args[1:len(args)-1], ".")
+	} else {
+		*name = strings.Join(args[1:], ".")
 	}
 }
 
