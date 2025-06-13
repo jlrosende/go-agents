@@ -8,6 +8,7 @@ agents:
     # transport: "http" "sse"
     # url: "http://localhost:8000/mcp"
     model: *model
+    description: "agent to do thinkgs"
     instructions: |
       Follow these steps for each interaction:
 

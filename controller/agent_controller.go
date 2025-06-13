@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"sync"
 
 	"github.com/jlrosende/go-agents/agents"
 	"github.com/jlrosende/go-agents/agents/workflows/base"
@@ -100,6 +101,7 @@ func NewAgentsController() (*AgentsController, error) {
 		agentsMap[name] = base.NewBaseAgent(
 			ctx,
 			name,
+			agent.Description,
 			agent.Model,
 			agent.Instructions,
 			agent.Servers,
@@ -157,7 +159,7 @@ func (controller *AgentsController) GetAgent(name string) (agents.Agent, error) 
 	return agent, nil
 }
 
-func (controller *AgentsController) Run(defautlAgent string) error {
+func (controller *AgentsController) Run(agentName string) error {
 
 	slog.Info("start controller")
 
@@ -192,6 +194,28 @@ func (controller *AgentsController) Run(defautlAgent string) error {
 	slog.Info("start loop")
 
 	// Start default agent and send a message
+
+	wg := sync.WaitGroup{}
+	defaultAgent, err := controller.GetAgent(agentName)
+
+	if err != nil {
+		return err
+	}
+
+	for _, agent := range controller.Agents {
+		if agent == defaultAgent {
+			continue
+		}
+		go func() {
+			wg.Add(1)
+			agent.Start()
+			defer wg.Done()
+		}()
+	}
+
+	defaultAgent.Start()
+
+	wg.Wait()
 
 	// Server mode?
 

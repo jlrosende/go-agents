@@ -18,4 +18,5 @@ type Agent interface {
 	GetModel() string
 	GetInstructions() string
 	GetRequestParams() *providers.RequestParams
+	Start() error
 }

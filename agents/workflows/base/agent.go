@@ -1,24 +1,33 @@
 package base
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
+	"os"
+	"os/signal"
 	"slices"
+	"sync"
+	"syscall"
 
 	"github.com/invopop/jsonschema"
 	"github.com/jlrosende/go-agents/agents"
 	"github.com/jlrosende/go-agents/llm/providers"
 	"github.com/jlrosende/go-agents/mcp"
+	"google.golang.org/grpc"
 
 	mcp_tool "github.com/mark3labs/mcp-go/mcp"
+
+	pb "github.com/jlrosende/go-agents/proto/a2a/v1"
 )
 
 type BaseAgent struct {
 	ctx context.Context
 
-	Name string
-
+	Name        string
+	Description string
 	// MCP
 	Servers      []string
 	IncludeTools []string
@@ -33,17 +42,21 @@ type BaseAgent struct {
 	llm          providers.LLM
 
 	RequestParams *providers.RequestParams
+
+	// GRCP Server
+	pb.UnimplementedA2AServiceServer
 }
 
 var _ agents.Agent = (*BaseAgent)(nil)
 
-func NewBaseAgent(ctx context.Context, name, model, instructions string, servers, includeTools, excludeTools []string, reqParams *providers.RequestParams) agents.Agent {
+func NewBaseAgent(ctx context.Context, name, description, model, instructions string, servers, includeTools, excludeTools []string, reqParams *providers.RequestParams) agents.Agent {
 
 	// Init LLM factory with model and tools
 	return &BaseAgent{
 		ctx: ctx,
 
-		Name: name,
+		Name:        name,
+		Description: description,
 
 		Servers:      servers,
 		IncludeTools: includeTools,
@@ -55,6 +68,43 @@ func NewBaseAgent(ctx context.Context, name, model, instructions string, servers
 
 		RequestParams: reqParams,
 	}
+}
+
+func (a *BaseAgent) Start() error {
+
+	lis, err := net.Listen("unix", fmt.Sprintf("/tmp/%s.sock", a.Name))
+	if err != nil {
+		return fmt.Errorf("failed to listen: %w", err)
+	}
+	server := grpc.NewServer()
+
+	pb.RegisterA2AServiceServer(server, a)
+
+	a.Logger.Info(fmt.Sprintf("agent %s listening at %v", a.Name, lis.Addr()))
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+
+	go func() {
+		s := <-sigCh
+		a.Logger.Info(fmt.Sprintf("got signal %v, attempting graceful shutdown", s))
+
+		server.GracefulStop()
+		// grpc.Stop() // leads to error while receiving stream response: rpc error: code = Unavailable desc = transport is closing
+		wg.Done()
+	}()
+
+	if err := server.Serve(lis); err != nil {
+		return fmt.Errorf("failed to serve: %@", err)
+	}
+
+	wg.Wait()
+
+	a.Logger.Info(fmt.Sprintf("clean agent %s shutdown", a.Name))
+
+	return nil
 }
 
 func (a BaseAgent) GetName() string {
@@ -150,4 +200,66 @@ func (a BaseAgent) Structured(message string, responseStruct any) ([]mcp_tool.Co
 	}
 
 	return response, nil
+}
+
+func (a *BaseAgent) GetAgentCard(ctx context.Context, in *pb.GetAgentCardRequest) (*pb.AgentCard, error) {
+	return &pb.AgentCard{
+		Name:        a.Name,
+		Description: a.Description,
+		Url:         "http:://<url>:<port>",
+		Version:     "0.0.2",
+		Capabilities: &pb.AgentCapabilities{
+			Streaming:         true,
+			PushNotifications: true,
+		},
+		DefaultInputModes:  []string{"text", "audio"},
+		DefaultOutputModes: []string{"text", "audio"},
+		Skills: []*pb.AgentSkill{
+			{
+				Id:          "filesystem",
+				Name:        "FileSystem",
+				Description: "hj0",
+				Tags:        []string{"jhgbvkjhbvkjhv"},
+			},
+		},
+	}, nil
+}
+
+func (a *BaseAgent) SendMessage(ctx context.Context, in *pb.SendMessageRequest) (*pb.SendMessageResponse, error) {
+
+	a.Logger.Debug(fmt.Sprintf("Received: %v", in.GetRequest()))
+
+	var buffer bytes.Buffer
+	for _, part := range in.GetRequest().GetContent() {
+
+		switch p := part.GetPart().(type) {
+		case *pb.Part_Text:
+			buffer.WriteString(p.Text + "\n")
+		case *pb.Part_Data:
+			buffer.WriteString(p.Data.GetData().String() + "\n")
+		case *pb.Part_File:
+			buffer.WriteString(p.File.GetFileWithUri() + "\n")
+		}
+	}
+
+	msg, err := a.Send(buffer.String())
+
+	if err != nil {
+		return nil, fmt.Errorf("error sending message to agent %w", err)
+	}
+
+	return &pb.SendMessageResponse{
+		Payload: &pb.SendMessageResponse_Msg{
+			Msg: &pb.Message{
+				Role: pb.Role_ROLE_AGENT,
+				Content: []*pb.Part{
+					&pb.Part{
+						Part: &pb.Part_Text{
+							Text: msg,
+						},
+					},
+				},
+			},
+		},
+	}, nil
 }
