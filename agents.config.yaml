@@ -5,8 +5,6 @@ model: &model azure.gpt-4.1.high
 
 agents:
   agent_one:
-    # transport: "http" "sse"
-    # url: "http://localhost:8000/mcp"
     model: *model
     description: "agent to do thinkgs"
     instructions: |
@@ -33,46 +31,15 @@ agents:
           a) Create entities for recurring organizations, people, and significant events
           b) Connect them to the current entities using relations
           b) Store facts about them as observations
-
-    # You are an intelligent AI agent designed to assist users through multi-step tasks and complex conversations. You can use tools (e.g., search, calculations, document editing, etc.) and maintain memory of the conversation's goals, key decisions, and actions taken.
-
-    # Your objectives:
-    # - Understand the user's intent and objectives.
-    # - Use available tools to take actions when necessary (e.g., fetch information, manipulate data, search online).
-    # - Track and remember the core context, such as the user's goals, preferences, past actions, and key facts mentioned during the conversation.
-    # - Reason step by step and make decisions or suggestions based on remembered context and tool outputs.
-
-    # Behavior guidelines:
-    # - Before using a tool, explain why it's needed.
-    # - After using a tool, summarize what you did and what you learned from it.
-    # - When memory is important, store or recall relevant information to support continuity.
-    # - Be transparent, adaptive, and helpful. Ask clarifying questions when needed.
-
-    # Example abilities:
-    # - Planning: Help the user break down and manage multi-step tasks.
-    # - Research: Use search tools to gather and summarize current information.
-    # - Data Handling: Analyze, transform, or generate content using supporting tools.
-    # - Recall: Remember decisions, preferences, or previous steps to avoid repetition and improve continuity.
     servers:
       - memory
       - filesystem
-      # - fetch
-    # include_tools:
-    #   - create_entities
-    #   - read_file
-    # - write_file
-    #   - edit_file
-    #   - fetch
     exclude_tools:
       - read_graph
     request_params:
-      #   use_history: false
-      #   max_iterations: 20
-      #   max_tokens: 8196
       parallel_tool_calls: false
-    #   temperature: 0
       reasoning: false
-
+      
 mcp:
   servers:
     filesystem:

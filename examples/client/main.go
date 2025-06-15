@@ -23,6 +23,7 @@ import (
 	"context"
 	"log"
 
+	"github.com/google/uuid"
 	pb "github.com/jlrosende/go-agents/proto/a2a/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -31,7 +32,7 @@ import (
 func main() {
 
 	// Set up a connection to the server.
-	conn, err := grpc.NewClient("unix:///tmp/hola.sock",
+	conn, err := grpc.NewClient("unix:///tmp/agent_one.sock",
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
@@ -45,7 +46,8 @@ func main() {
 	// defer cancel()
 	r, err := c.SendMessage(context.Background(), &pb.SendMessageRequest{
 		Request: &pb.Message{
-			Role: pb.Role_ROLE_USER,
+			MessageId: uuid.NewString(),
+			Role:      pb.Role_ROLE_USER,
 			Content: []*pb.Part{
 				{
 					Part: &pb.Part_Text{

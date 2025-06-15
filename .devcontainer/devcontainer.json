@@ -7,6 +7,7 @@
   "dockerComposeFile": "compose.yml",
   "service": "devcontainer",
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  // Features to add to the dev container. More info: https://containers.dev/features.
   "features": {
     "ghcr.io/jsburckhardt/devcontainer-features/uv:1": {},
     "ghcr.io/devcontainers/features/node:1": {},
@@ -15,12 +16,10 @@
     "ghcr.io/devcontainers-extra/features/protoc:1": {}
     // "ghcr.io/mrsimonemms/devcontainers/buf:1": {}
   },
-  // Features to add to the dev container. More info: https://containers.dev/features.
-  // "features": {},
   // Use 'forwardPorts' to make a list of ports inside the container available locally.
   // "forwardPorts": [],
   // Use 'postCreateCommand' to run commands after the container is created.
-  // "postCreateCommand": "pip3 install --user -r requirements.txt",
+  "postCreateCommand": "bash .devcontainer/setup.sh",
   // Configure tool-specific properties.
   "customizations": {
     "vscode": {

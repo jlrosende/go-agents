@@ -12,11 +12,13 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/google/uuid"
 	"github.com/invopop/jsonschema"
 	"github.com/jlrosende/go-agents/agents"
 	"github.com/jlrosende/go-agents/llm/providers"
 	"github.com/jlrosende/go-agents/mcp"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	mcp_tool "github.com/mark3labs/mcp-go/mcp"
 
@@ -28,6 +30,11 @@ type BaseAgent struct {
 
 	Name        string
 	Description string
+
+	//A2A
+	Url      string // unix:///tmp/agent.sock, https://<agent>:<port>
+	Protocol agents.Protocol
+
 	// MCP
 	Servers      []string
 	IncludeTools []string
@@ -45,40 +52,64 @@ type BaseAgent struct {
 
 	// GRCP Server
 	pb.UnimplementedA2AServiceServer
+
+	//
+	Server *grpc.Server
+	Client pb.A2AServiceClient
 }
 
 var _ agents.Agent = (*BaseAgent)(nil)
 
-func NewBaseAgent(ctx context.Context, name, description, model, instructions string, servers, includeTools, excludeTools []string, reqParams *providers.RequestParams) agents.Agent {
-
-	// Init LLM factory with model and tools
-	return &BaseAgent{
-		ctx: ctx,
-
-		Name:        name,
-		Description: description,
-
-		Servers:      servers,
-		IncludeTools: includeTools,
-		ExcludeTools: excludeTools,
-
-		Model:        model,
-		Instructions: instructions,
-		mcpServers:   map[string]*mcp.MCPServer{},
-
-		RequestParams: reqParams,
-	}
-}
-
 func (a *BaseAgent) Start() error {
 
-	lis, err := net.Listen("unix", fmt.Sprintf("/tmp/%s.sock", a.Name))
+	a.Logger.Debug("start CLIENT", "url", a.Url)
+
+	if err := a.StartClient(); err != nil {
+		return fmt.Errorf("error start agent %s client, %w", a.GetName(), err)
+	}
+
+	a.Logger.Debug("start SERVER")
+
+	if err := a.StartServer(); err != nil {
+		return fmt.Errorf("error start agent %s server, %w", a.GetName(), err)
+	}
+
+	return nil
+}
+
+func (a *BaseAgent) StartClient() error {
+
+	// Set up a connection to the server.
+	conn, err := grpc.NewClient(a.Url,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		return fmt.Errorf("can not create client for agent %s, %w", a.GetName(), err)
+	}
+
+	a.Client = pb.NewA2AServiceClient(conn)
+
+	return nil
+}
+
+func (a *BaseAgent) StartServer() error {
+	var lis net.Listener
+	var err error
+
+	switch a.Protocol {
+	case agents.PROTOCOL_TCP:
+		lis, err = net.Listen("tcp", fmt.Sprintf(":%d", 1234))
+	case agents.PROTOCOL_UNIX:
+		lis, err = net.Listen("unix", fmt.Sprintf("/tmp/%s.sock", a.GetName()))
+	}
+
 	if err != nil {
 		return fmt.Errorf("failed to listen: %w", err)
 	}
-	server := grpc.NewServer()
 
-	pb.RegisterA2AServiceServer(server, a)
+	a.Server = grpc.NewServer()
+
+	pb.RegisterA2AServiceServer(a.Server, a)
 
 	a.Logger.Info(fmt.Sprintf("agent %s listening at %v", a.Name, lis.Addr()))
 
@@ -91,12 +122,12 @@ func (a *BaseAgent) Start() error {
 		s := <-sigCh
 		a.Logger.Info(fmt.Sprintf("got signal %v, attempting graceful shutdown", s))
 
-		server.GracefulStop()
+		a.Server.GracefulStop()
 		// grpc.Stop() // leads to error while receiving stream response: rpc error: code = Unavailable desc = transport is closing
 		wg.Done()
 	}()
 
-	if err := server.Serve(lis); err != nil {
+	if err := a.Server.Serve(lis); err != nil {
 		return fmt.Errorf("failed to serve: %@", err)
 	}
 
@@ -105,6 +136,10 @@ func (a *BaseAgent) Start() error {
 	a.Logger.Info(fmt.Sprintf("clean agent %s shutdown", a.Name))
 
 	return nil
+}
+
+func (a *BaseAgent) SetProtocol(protocol agents.Protocol) {
+	a.Protocol = protocol
 }
 
 func (a BaseAgent) GetName() string {
@@ -132,17 +167,33 @@ func (a *BaseAgent) Initialize() error {
 	a.Logger = slog.Default().With(
 		slog.String("agent", a.Name),
 		slog.String("type", "BASE_AGENT"),
-		slog.String("model", a.Model),
 	)
 
-	err := a.llm.Initialize()
+	// if url is set, is a remote agent
+	if a.Model != "" {
 
-	if err != nil {
-		return fmt.Errorf("error initialize llm %s in agent %s, %w", a.Model, a.Name, err)
+		a.Logger = a.Logger.With(
+			slog.String("model", a.Model),
+		)
+
+		err := a.llm.Initialize()
+
+		if err != nil {
+			return fmt.Errorf("error initialize llm %s in agent %s, %w", a.Model, a.Name, err)
+		}
+
+		// Init clients and create missing configurations
+		a.llm.AttachTools(a.mcpServers, a.IncludeTools, a.ExcludeTools)
 	}
 
-	// Init clients and create missing configurations
-	a.llm.AttachTools(a.mcpServers, a.IncludeTools, a.ExcludeTools)
+	if a.Protocol == "" {
+		a.Protocol = agents.PROTOCOL_UNIX
+	}
+	// Check config and configure
+
+	if a.Url == "" {
+		a.Url = fmt.Sprintf("unix:///tmp/%s.sock", a.Name)
+	}
 
 	return nil
 }
@@ -173,7 +224,7 @@ func (a *BaseAgent) Send(message string) (string, error) {
 	return result.AllText(), nil
 }
 
-func (a BaseAgent) Generate(message string) ([]mcp_tool.Content, error) {
+func (a *BaseAgent) Generate(message string) ([]mcp_tool.Content, error) {
 	response, err := a.llm.Generate(message)
 
 	if err != nil {
@@ -242,18 +293,29 @@ func (a *BaseAgent) SendMessage(ctx context.Context, in *pb.SendMessageRequest) 
 		}
 	}
 
+	// TODO Change for generate to perform more interactions
 	msg, err := a.Send(buffer.String())
 
 	if err != nil {
 		return nil, fmt.Errorf("error sending message to agent %w", err)
 	}
 
+	// TODO Need more logic to add more interactions
+	// - Tasks
+	//   - Support for Artifacts
+	// - Multi-Turn Intecraction
+	// - Push notifications
+	// - File exchange support
+	// - Structured Responses
+
 	return &pb.SendMessageResponse{
 		Payload: &pb.SendMessageResponse_Msg{
 			Msg: &pb.Message{
-				Role: pb.Role_ROLE_AGENT,
+				MessageId: uuid.NewString(),
+				ContextId: uuid.NewString(),
+				Role:      pb.Role_ROLE_AGENT,
 				Content: []*pb.Part{
-					&pb.Part{
+					{
 						Part: &pb.Part_Text{
 							Text: msg,
 						},
@@ -262,4 +324,12 @@ func (a *BaseAgent) SendMessage(ctx context.Context, in *pb.SendMessageRequest) 
 			},
 		},
 	}, nil
+}
+
+func (a *BaseAgent) GetClient() pb.A2AServiceClient {
+	return a.Client
+}
+
+func (a *BaseAgent) GetServer() *grpc.Server {
+	return a.Server
 }

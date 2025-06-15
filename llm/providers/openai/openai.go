@@ -212,7 +212,7 @@ func (llm OpenAILLM) Generate(message string) ([]mcp_tool.Content, error) {
 	response := []mcp_tool.Content{}
 
 stop_iter:
-	for _ = range llm.RequestParams.MaxIterations {
+	for range llm.RequestParams.MaxIterations {
 
 		completion, err := llm.Client.Chat.Completions.New(llm.Ctx, query)
 
@@ -340,7 +340,7 @@ func (llm OpenAILLM) Structured(message string, reponseStruct any) ([]mcp_tool.C
 	response := []mcp_tool.Content{}
 
 stop_iter_structured:
-	for _ = range llm.RequestParams.MaxIterations {
+	for range llm.RequestParams.MaxIterations {
 
 		completion, err := llm.Client.Chat.Completions.New(llm.Ctx, query)
 

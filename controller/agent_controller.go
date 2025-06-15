@@ -5,14 +5,15 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"sync"
 
 	"github.com/jlrosende/go-agents/agents"
 	"github.com/jlrosende/go-agents/agents/workflows/base"
+	"github.com/jlrosende/go-agents/agents/workflows/chain"
 	"github.com/jlrosende/go-agents/config"
 	"github.com/jlrosende/go-agents/llm"
 	"github.com/jlrosende/go-agents/llm/providers"
 	"github.com/jlrosende/go-agents/mcp"
+	"golang.org/x/sync/errgroup"
 )
 
 type AgentsController struct {
@@ -98,17 +99,18 @@ func NewAgentsController() (*AgentsController, error) {
 			}
 		}
 
-		agentsMap[name] = base.NewBaseAgent(
-			ctx,
-			name,
-			agent.Description,
-			agent.Model,
-			agent.Instructions,
-			agent.Servers,
-			agent.IncludeTools,
-			agent.ExcludeTools,
-			reqParams,
-		)
+		agentsMap[name] = &base.BaseAgent{
+			Name:          name,
+			Url:           agent.Url,
+			Description:   agent.Description,
+			Model:         agent.Model,
+			Instructions:  agent.Instructions,
+			Servers:       agent.Servers,
+			IncludeTools:  agent.IncludeTools,
+			ExcludeTools:  agent.ExcludeTools,
+			RequestParams: reqParams,
+		}
+
 	}
 
 	// Load mcp_servers
@@ -174,18 +176,35 @@ func (controller *AgentsController) Run(agentName string) error {
 	}
 
 	slog.Info("load agents")
-	// TODO Agent how need other agents need initiliza in other order or have a reference of the agent inside
+
 	// Start all Agents
 	for _, agent := range controller.Agents {
+
+		slog.Debug(fmt.Sprintf("Initialize: %s: %T", agent.GetName(), agent))
+
 		// Check agent type and init the specific need of each one
-		agent.AttachMCPServers(controller.MCPServers)
-		llm, err := llm.NewLLM(controller.ctx, agent.GetModel(), agent.GetInstructions(), agent.GetRequestParams(), controller.Config)
-		if err != nil {
-			return err
+		switch a := agent.(type) {
+
+		case *chain.ChainAgent:
+			a.AttachAgents(controller.Agents)
+
+		case *base.BaseAgent:
+			// Check
+			agent.AttachMCPServers(controller.MCPServers)
+
+			if agent.GetModel() != "" {
+
+				newLLM, err := llm.NewLLM(controller.ctx, agent.GetModel(), agent.GetInstructions(), agent.GetRequestParams(), controller.Config)
+				if err != nil {
+					return err
+				}
+
+				agent.AttachLLM(newLLM)
+			}
+
 		}
 
-		agent.AttachLLM(llm)
-
+		// Init agent custom funtion for each type
 		if err := agent.Initialize(); err != nil {
 			return err
 		}
@@ -195,7 +214,7 @@ func (controller *AgentsController) Run(agentName string) error {
 
 	// Start default agent and send a message
 
-	wg := sync.WaitGroup{}
+	eg := errgroup.Group{}
 	defaultAgent, err := controller.GetAgent(agentName)
 
 	if err != nil {
@@ -203,19 +222,23 @@ func (controller *AgentsController) Run(agentName string) error {
 	}
 
 	for _, agent := range controller.Agents {
-		if agent == defaultAgent {
+		slog.Debug(agent.GetName())
+		if agent.GetName() == defaultAgent.GetName() {
 			continue
 		}
-		go func() {
-			wg.Add(1)
-			agent.Start()
-			defer wg.Done()
-		}()
+
+		eg.Go(func() error {
+			return agent.Start()
+		})
 	}
 
-	defaultAgent.Start()
+	if err := defaultAgent.Start(); err != nil {
+		return err
+	}
 
-	wg.Wait()
+	if err := eg.Wait(); err != nil {
+		return err
+	}
 
 	// Server mode?
 
