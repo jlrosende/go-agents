@@ -5,18 +5,18 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net"
-	"os"
-	"os/signal"
 	"slices"
-	"sync"
-	"syscall"
 
 	"github.com/google/uuid"
 	"github.com/jlrosende/go-agents/agents"
 	"github.com/jlrosende/go-agents/agents/workflows/base"
 	pb "github.com/jlrosende/go-agents/proto/a2a/v1"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 )
 
 type ChainAgent struct {
@@ -48,12 +48,41 @@ func (a *ChainAgent) Initialize() error {
 	)
 
 	if a.Url == "" {
-		a.Url = fmt.Sprintf("unix:///tmp/%s.sock", a.Name)
+		a.Url = fmt.Sprintf("unix:///tmp/go-agent-%s.sock", a.Name)
 	}
 
 	if a.Protocol == "" {
 		a.Protocol = agents.PROTOCOL_UNIX
 	}
+
+	grpcPanicRecoveryHandler := func(p any) (err error) {
+		a.Logger.Error("recovered from panic")
+		return status.Errorf(codes.Internal, "%s", p)
+	}
+
+	interceptorLogger := func(l *slog.Logger) logging.Logger {
+		return logging.LoggerFunc(func(ctx context.Context, lvl logging.Level, msg string, fields ...any) {
+			l.Log(ctx, slog.Level(lvl), msg, fields...)
+		})
+	}
+
+	a.Server = grpc.NewServer(
+		grpc.ChainStreamInterceptor(
+			logging.StreamServerInterceptor(
+				interceptorLogger(a.Logger),
+				// , logging.WithFieldsFromContext(logTraceID)
+			),
+			recovery.StreamServerInterceptor(recovery.WithRecoveryHandler(grpcPanicRecoveryHandler)),
+		),
+
+		grpc.ChainUnaryInterceptor(
+			logging.UnaryServerInterceptor(
+				interceptorLogger(a.Logger),
+				// logging.WithFieldsFromContext(logTraceID),
+			),
+			recovery.UnaryServerInterceptor(recovery.WithRecoveryHandler(grpcPanicRecoveryHandler)),
+		),
+	)
 
 	return nil
 }
@@ -81,55 +110,13 @@ func (a *ChainAgent) Start() error {
 
 	a.Logger.Debug("start SERVER")
 
-	if err := a.StartServer(); err != nil {
-		return fmt.Errorf("error start agent %s server, %w", a.GetName(), err)
-	}
-
-	return nil
-}
-
-func (a *ChainAgent) StartServer() error {
-	var lis net.Listener
-	var err error
-
-	switch a.Protocol {
-	case agents.PROTOCOL_TCP:
-		lis, err = net.Listen("tcp", fmt.Sprintf(":%d", 1234))
-	case agents.PROTOCOL_UNIX:
-		lis, err = net.Listen("unix", fmt.Sprintf("/tmp/%s.sock", a.GetName()))
-	}
+	err := a.StartServer(func(server *grpc.Server) {
+		pb.RegisterA2AServiceServer(a.Server, a)
+	})
 
 	if err != nil {
-		return fmt.Errorf("failed to listen: %w", err)
+		return fmt.Errorf("error start agent %s server, %w", a.GetName(), err)
 	}
-
-	a.Server = grpc.NewServer()
-
-	pb.RegisterA2AServiceServer(a.Server, a)
-
-	a.Logger.Info(fmt.Sprintf("agent %s listening at %v", a.Name, lis.Addr()))
-
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-
-	go func() {
-		s := <-sigCh
-		a.Logger.Info(fmt.Sprintf("got signal %v, attempting graceful shutdown", s))
-
-		a.Server.GracefulStop()
-		// grpc.Stop() // leads to error while receiving stream response: rpc error: code = Unavailable desc = transport is closing
-		wg.Done()
-	}()
-
-	if err := a.Server.Serve(lis); err != nil {
-		return fmt.Errorf("failed to serve: %@", err)
-	}
-
-	wg.Wait()
-
-	a.Logger.Info(fmt.Sprintf("clean agent %s shutdown", a.Name))
 
 	return nil
 }

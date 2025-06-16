@@ -32,7 +32,7 @@ import (
 func main() {
 
 	// Set up a connection to the server.
-	conn, err := grpc.NewClient("unix:///tmp/agent_one.sock",
+	conn, err := grpc.NewClient("unix:///tmp/go-agent-chain.sock",
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {

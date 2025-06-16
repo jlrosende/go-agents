@@ -70,96 +70,15 @@ func (a *BaseAgent) Start() error {
 
 	a.Logger.Debug("start SERVER")
 
-	if err := a.StartServer(); err != nil {
+	err := a.StartServer(func(server *grpc.Server) {
+		pb.RegisterA2AServiceServer(a.Server, a)
+	})
+
+	if err != nil {
 		return fmt.Errorf("error start agent %s server, %w", a.GetName(), err)
 	}
 
 	return nil
-}
-
-func (a *BaseAgent) StartClient() error {
-
-	// Set up a connection to the server.
-	conn, err := grpc.NewClient(a.Url,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
-	if err != nil {
-		return fmt.Errorf("can not create client for agent %s, %w", a.GetName(), err)
-	}
-
-	a.Client = pb.NewA2AServiceClient(conn)
-
-	return nil
-}
-
-func (a *BaseAgent) StartServer() error {
-	var lis net.Listener
-	var err error
-
-	switch a.Protocol {
-	case agents.PROTOCOL_TCP:
-		lis, err = net.Listen("tcp", fmt.Sprintf(":%d", 1234))
-	case agents.PROTOCOL_UNIX:
-		lis, err = net.Listen("unix", fmt.Sprintf("/tmp/%s.sock", a.GetName()))
-	}
-
-	if err != nil {
-		return fmt.Errorf("failed to listen: %w", err)
-	}
-
-	a.Server = grpc.NewServer()
-
-	pb.RegisterA2AServiceServer(a.Server, a)
-
-	a.Logger.Info(fmt.Sprintf("agent %s listening at %v", a.Name, lis.Addr()))
-
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-
-	go func() {
-		s := <-sigCh
-		a.Logger.Info(fmt.Sprintf("got signal %v, attempting graceful shutdown", s))
-
-		a.Server.GracefulStop()
-		// grpc.Stop() // leads to error while receiving stream response: rpc error: code = Unavailable desc = transport is closing
-		wg.Done()
-	}()
-
-	if err := a.Server.Serve(lis); err != nil {
-		return fmt.Errorf("failed to serve: %@", err)
-	}
-
-	wg.Wait()
-
-	a.Logger.Info(fmt.Sprintf("clean agent %s shutdown", a.Name))
-
-	return nil
-}
-
-func (a *BaseAgent) SetProtocol(protocol agents.Protocol) {
-	a.Protocol = protocol
-}
-
-func (a BaseAgent) GetName() string {
-	return a.Name
-}
-
-func (a BaseAgent) GetModel() string {
-	return a.Model
-}
-
-func (a BaseAgent) GetInstructions() string {
-	return a.Instructions
-}
-
-func (a BaseAgent) GetRequestParams() *providers.RequestParams {
-	return a.RequestParams
-}
-
-func (a *BaseAgent) AttachLLM(llm providers.LLM) {
-	a.llm = llm
 }
 
 func (a *BaseAgent) Initialize() error {
@@ -195,7 +114,96 @@ func (a *BaseAgent) Initialize() error {
 		a.Url = fmt.Sprintf("unix:///tmp/%s.sock", a.Name)
 	}
 
+	a.Server = grpc.NewServer()
+
 	return nil
+}
+
+func (a *BaseAgent) StartClient() error {
+
+	// Set up a connection to the server.
+	conn, err := grpc.NewClient(a.Url,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		return fmt.Errorf("can not create client for agent %s, %w", a.GetName(), err)
+	}
+
+	a.Client = pb.NewA2AServiceClient(conn)
+
+	return nil
+}
+
+func (a *BaseAgent) StartServer(serviceRegister func(server *grpc.Server)) error {
+	var lis net.Listener
+	var err error
+
+	switch a.Protocol {
+	case agents.PROTOCOL_TCP:
+		lis, err = net.Listen("tcp", fmt.Sprintf(":%d", 1234))
+	case agents.PROTOCOL_UNIX:
+		lis, err = net.Listen("unix", fmt.Sprintf("/tmp/go-agent-%s.sock", a.GetName()))
+	}
+
+	if err != nil {
+		return fmt.Errorf("failed to listen: %w", err)
+	}
+
+	serviceRegister(a.Server)
+
+	a.Logger.Info(fmt.Sprintf("agent %s listening at %v", a.Name, lis.Addr()))
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(
+		sigCh, os.Interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM,
+	)
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+
+	go func() {
+		s := <-sigCh
+		a.Logger.Info(fmt.Sprintf("got signal %v, attempting graceful shutdown", s))
+
+		a.Server.GracefulStop()
+		// grpc.Stop() // leads to error while receiving stream response: rpc error: code = Unavailable desc = transport is closing
+		wg.Done()
+	}()
+
+	if err := a.Server.Serve(lis); err != nil {
+		return fmt.Errorf("failed to serve: %@", err)
+	}
+
+	wg.Wait()
+
+	a.Logger.Info(fmt.Sprintf("clean agent %s shutdown", a.Name))
+
+	defer lis.Close()
+
+	return nil
+}
+
+func (a *BaseAgent) SetProtocol(protocol agents.Protocol) {
+	a.Protocol = protocol
+}
+
+func (a BaseAgent) GetName() string {
+	return a.Name
+}
+
+func (a BaseAgent) GetModel() string {
+	return a.Model
+}
+
+func (a BaseAgent) GetInstructions() string {
+	return a.Instructions
+}
+
+func (a BaseAgent) GetRequestParams() *providers.RequestParams {
+	return a.RequestParams
+}
+
+func (a *BaseAgent) AttachLLM(llm providers.LLM) {
+	a.llm = llm
 }
 
 func (a *BaseAgent) AttachMCPServers(servers map[string]*mcp.MCPServer) {
