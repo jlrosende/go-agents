@@ -9,7 +9,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.2
 	github.com/invopop/jsonschema v0.13.0
 	github.com/mark3labs/mcp-go v0.32.0
-	github.com/openai/openai-go v1.5.0
+	github.com/openai/openai-go v1.9.0
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/sync v0.15.0
