@@ -1,7 +1,6 @@
 package base
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"log/slog"
@@ -262,25 +261,30 @@ func (a BaseAgent) Structured(message string, responseStruct any) ([]mcp_tool.Co
 }
 
 func (a *BaseAgent) GetAgentCard(ctx context.Context, in *pb.GetAgentCardRequest) (*pb.AgentCard, error) {
+
+	skils := []*pb.AgentSkill{}
+
+	for name, server := range a.mcpServers {
+		skils = append(skils, &pb.AgentSkill{
+			Id:          name,
+			Name:        server.Name,
+			Description: server.Name,
+		})
+	}
+
 	return &pb.AgentCard{
 		Name:        a.Name,
 		Description: a.Description,
-		Url:         "http:://<url>:<port>",
-		Version:     "0.0.2",
+		Url:         a.Url,
+		Version:     "0.0.7",
 		Capabilities: &pb.AgentCapabilities{
 			Streaming:         true,
 			PushNotifications: true,
 		},
-		DefaultInputModes:  []string{"text", "audio"},
-		DefaultOutputModes: []string{"text", "audio"},
-		Skills: []*pb.AgentSkill{
-			{
-				Id:          "filesystem",
-				Name:        "FileSystem",
-				Description: "hj0",
-				Tags:        []string{"jhgbvkjhbvkjhv"},
-			},
-		},
+		DefaultInputModes:  []string{"text"},
+		DefaultOutputModes: []string{"text"},
+		// TODO Fill the skills with tools and other capabilities
+		Skills: skils,
 	}, nil
 }
 
@@ -288,25 +292,12 @@ func (a *BaseAgent) SendMessage(ctx context.Context, in *pb.SendMessageRequest) 
 
 	a.Logger.Debug(fmt.Sprintf("Received: %v", in.GetRequest()))
 
-	var buffer bytes.Buffer
-	for _, part := range in.GetRequest().GetContent() {
+	// Check if the request is a task or a message
 
-		switch p := part.GetPart().(type) {
-		case *pb.Part_Text:
-			buffer.WriteString(p.Text + "\n")
-		case *pb.Part_Data:
-			buffer.WriteString(p.Data.GetData().String() + "\n")
-		case *pb.Part_File:
-			buffer.WriteString(p.File.GetFileWithUri() + "\n")
-		}
-	}
+	// req := in.GetRequest()
 
-	// TODO Change for generate to perform more interactions
-	msg, err := a.Send(buffer.String())
-
-	if err != nil {
-		return nil, fmt.Errorf("error sending message to agent %w", err)
-	}
+	// task := req.GetTaskId()
+	// msg := req.GetMessageId()
 
 	// TODO Need more logic to add more interactions
 	// - Tasks
@@ -325,7 +316,7 @@ func (a *BaseAgent) SendMessage(ctx context.Context, in *pb.SendMessageRequest) 
 				Content: []*pb.Part{
 					{
 						Part: &pb.Part_Text{
-							Text: msg,
+							Text: "",
 						},
 					},
 				},

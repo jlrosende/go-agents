@@ -175,6 +175,8 @@ func (llm OpenAILLM) Generate(message string) ([]mcp_tool.Content, error) {
 		}
 	}
 
+	openai.UserMessage("")
+
 	messages = append(messages, openai.UserMessage(message))
 
 	if llm.RequestParams.UseHistory {

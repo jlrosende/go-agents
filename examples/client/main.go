@@ -61,6 +61,27 @@ func main() {
 		log.Fatalf("could send message: %v", err)
 	}
 
+	r.GetMsg()
+
+	r, err = c.SendMessage(context.Background(), &pb.SendMessageRequest{
+		Request: &pb.Message{
+			TaskId: uuid.NewString(),
+			Role:   pb.Role_ROLE_USER,
+			Content: []*pb.Part{
+				{
+					Part: &pb.Part_Text{
+						Text: "READ tyhe file .gitignore",
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		log.Fatalf("could send message: %v", err)
+	}
+
+	r.GetTask().GetStatus()
+
 	log.Printf("MSG Response: %s", r.GetMsg())
 
 }

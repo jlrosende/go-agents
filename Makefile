@@ -2,38 +2,42 @@
 # GLOBAL ENVS
 GOCACHE = $(shell go env GOCACHE)
 GOMODCACHE = $(shell go env GOMODCACHE)
-GOOS ?= $(shell go env GOOS)
+GOOS = $(shell go env GOOS)
 GOARCH = $(shell go env GOARCH)
 
 TAG ?= develop
 
-.PHONY: lint unit integration fmt build docker-build setup docs
-
+.PHONY: setup
 setup:
 	go mod download
 
+.PHONY: lint
 lint:
 	@echo "Check project with linters"
 	go tool golangci-lint run
 
-unit: 
+.PHONY: unit
+unit:
 	go test ./... -v -cover
 	go test ./... -v -cover -covermode=count -coverprofile coverage.out -json > report.json
 	go tool cover -html=coverage.out -o=coverage.html
 
-integration: 
+.PHONY: integration
+integration:
 	go test -tags=integration ./test/... -v
-	
+
+.PHONY: fmt
 fmt:
 	@echo "Format project files"
 	go fmt ./...
 
+.PHONY: build
 build:
 	go build \
-	  -o ./build/sisu-$(TAG)-$(GOOS)-$(GOARCH) \
-	  -ldflags="-X 'github.com/inditex/sisu/config/latest.Version=$(TAG)'" \
+	  -o ./build/go-agents-$(TAG)-$(GOOS)-$(GOARCH) \
 	  main.go
 
+.PHONY: docker-build
 docker-build:
 	docker buildx build \
 		--progress=plain \
@@ -41,9 +45,17 @@ docker-build:
 		--build-arg GOCACHE=$(GOCACHE) \
 		--build-arg GOMODCACHE=$(GOMODCACHE) \
 		--output "type=docker" \
-		-t sisu:latest \
+		-t go-agents:latest \
 		.
 
+.PHONY: clean
 clean:
 	rm coverage.html coverage.out report.json
-	
+
+.PHONY: gen-proto
+gen-proto:
+	buf lint
+	buf generate
+
+.PHONY: generate
+generate: gen-proto
