@@ -11,7 +11,7 @@ require (
 	github.com/mark3labs/mcp-go v0.37.0
 	github.com/openai/openai-go v1.12.0
 	github.com/spf13/viper v1.20.1
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	golang.org/x/sync v0.16.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20250804133106-a7a43d27e69b
 	google.golang.org/grpc v1.74.2
